@@ -1,0 +1,39 @@
+# IDEs
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sensitive Data (Recursive)
+**/.env
+**/session_store.json
+**/*.sqlite
+**/config/credentials.json
+
+# Dependencies (Recursive)
+**/node_modules/
+**/.dart_tool/
+**/pubspec.lock
+
+# Build Artifacts (Recursive)
+**/build/
+**/bin/
+**/obj/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+
+# Logs
+**/*.log
+backend/backend_log*.txt
+frontend/analyze_res.txt
+frontend/out.txt
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Project-specific
+**/uploads/
+Github_Reference/
