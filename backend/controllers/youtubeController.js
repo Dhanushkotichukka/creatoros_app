@@ -189,6 +189,40 @@ exports.getStatus = (req, res) => {
     });
 };
 
+exports.publishToYouTube = async (mediaPath, metadata) => {
+    if (!global.youtubeToken) throw new Error('YouTube not connected');
+    
+    // Ensure the OAuth client is re-synced with the global token (Crucial after server restart)
+    oauth2Client.setCredentials({ access_token: global.youtubeToken });
+    
+    const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
+    const fs = require('fs');
+    
+    try {
+        const response = await youtube.videos.insert({
+            part: 'snippet,status',
+            requestBody: {
+                snippet: {
+                    title: metadata.title || 'New Video from CreatorOS',
+                    description: `${metadata.description || ''}\n\n${(metadata.hashtags || []).map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(' ')}`.trim(),
+                    tags: (metadata.hashtags || []).map(tag => tag.replace('#', '')),
+                },
+                status: {
+                    privacyStatus: metadata.privacyStatus || 'public', // Set dynamically based on chosen privacy status flag
+                    madeForKids: metadata.madeForKids || false, // COPPA compliance
+                },
+            },
+            media: {
+                body: fs.createReadStream(mediaPath),
+            },
+        });
+        return { success: true, platform: 'YouTube', id: response.data.id };
+    } catch (error) {
+        console.error('YouTube Publish Error:', error.response?.data || error.message);
+        throw error;
+    }
+};
+
 exports.disconnect = (req, res) => {
     global.youtubeToken = null;
     global.ytChannelName = null;

@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-04-03T19:02:20.693Z",
+  "mediaUrl": "https://creator-os-1.s3.us-east-1.amazonaws.com/1775242814425-VID_20241124_223356_437.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAUQVCDJJJJVE54FFZ%2F20260403%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260403T190018Z&X-Amz-Expires=3600&X-Amz-Signature=ba282c6b6f71f63d2e70d4d7aed4f9b23c59fab8d3477863e250862364af0817&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject",
+  "platforms": {
+    "youtube": {
+      "title": "hiiiiii",
+      "description": "This is a great generated caption for this post!",
+      "hashtags": [
+        "#creatorOS",
+        "#post",
+        "#trending"
+      ],
+      "contentType": "Reel",
+      "privacyStatus": "public",
+      "madeForKids": false
+    },
+    "instagram": {
+      "title": "byyy",
+      "description": "This is a great generated caption for this post!",
+      "hashtags": [
+        "#creatorOS",
+        "#post",
+        "#trending"
+      ],
+      "contentType": "Reel",
+      "privacyStatus": "public",
+      "madeForKids": false
+    }
+  },
+  "results": [
+    {
+      "platform": "YouTube",
+      "success": false,
+      "error": "No access, refresh token, API key or refresh handler callback is set."
+    },
+    {
+      "success": true,
+      "platform": "Instagram",
+      "id": "17883265557585610"
+    }
+  ]
+}

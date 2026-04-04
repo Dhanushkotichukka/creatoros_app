@@ -1,0 +1,9 @@
+[INSTAGRAM] Started polling for container: 18082455779074227
+[12:31:08 am] Polling Error: Request failed with status code 400
+[12:31:19 am] Polling Error: Request failed with status code 400
+[12:31:29 am] Polling Error: Request failed with status code 400
+[12:31:40 am] Polling Error: Request failed with status code 400
+[12:31:50 am] Polling Error: Request failed with status code 400
+[12:32:01 am] Polling Error: Request failed with status code 400
+[12:32:12 am] Attempt 7: FINISHED
+[INSTAGRAM] SUCCESS: Ready to publish!

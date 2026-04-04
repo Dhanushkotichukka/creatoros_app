@@ -1,0 +1,71 @@
+{
+  "user": {
+    "name": "Telugu FilmStack",
+    "id": "122106854871264478"
+  },
+  "timestamp": "2026-04-03T18:45:59.781Z",
+  "permissions": [
+    {
+      "permission": "pages_show_list",
+      "status": "granted"
+    },
+    {
+      "permission": "business_management",
+      "status": "granted"
+    },
+    {
+      "permission": "instagram_basic",
+      "status": "granted"
+    },
+    {
+      "permission": "instagram_manage_comments",
+      "status": "granted"
+    },
+    {
+      "permission": "instagram_manage_insights",
+      "status": "granted"
+    },
+    {
+      "permission": "instagram_content_publish",
+      "status": "granted"
+    },
+    {
+      "permission": "pages_read_engagement",
+      "status": "granted"
+    },
+    {
+      "permission": "pages_manage_posts",
+      "status": "granted"
+    },
+    {
+      "permission": "public_profile",
+      "status": "granted"
+    }
+  ],
+  "rawPages": [
+    {
+      "instagram_business_account": {
+        "id": "17841432226780169"
+      },
+      "name": "Creatorostest",
+      "category": "Digital creator",
+      "id": "1142675442259487",
+      "tasks": [
+        "ADVERTISE",
+        "ANALYZE",
+        "CREATE_CONTENT",
+        "MESSAGING",
+        "MODERATE",
+        "MANAGE"
+      ]
+    }
+  ],
+  "igAccounts": [],
+  "selectedIgId": "17841432226780169",
+  "resolvedIg": {
+    "username": "test_creatoros",
+    "name": "testuser CreatorOs",
+    "profile_picture_url": "https://scontent.fvtz4-1.fna.fbcdn.net/v/t51.82787-15/657660104_18082369970074227_1226359609918642527_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=7d201b&_nc_ohc=KDtKJBqjMEwQ7kNvwFq0fy5&_nc_oc=Adr4QwOQ5aphf1rdtw9dnS9oYYX39GQB8mbPzRcRcAqXZpgMcYSX9_WPA81zg9qJCmo&_nc_zt=23&_nc_ht=scontent.fvtz4-1.fna&edm=AL-3X8kEAAAA&_nc_gid=i80qL_t5NW65_xqKdSj_ZA&oh=00_Af1S4hf_6a0YRY3QK6NWvYvJVsHdI39kNdcQkkpScZkHHA&oe=69D5DBC9",
+    "id": "17841432226780169"
+  }
+}

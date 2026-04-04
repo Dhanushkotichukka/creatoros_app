@@ -1,14 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'providers/post_state.dart';
 import 'screens/home_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/hub_screen.dart';
 import 'screens/community_screen.dart';
 import 'screens/creator_studio_screen.dart';
+import 'screens/multi_post_hub_screen.dart';
 import 'widgets/app_scaffold.dart';
 
 void main() {
-
-  runApp(const CreatorOSApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => PostState()),
+      ],
+      child: const CreatorOSApp(),
+    ),
+  );
 }
 
 class CreatorOSApp extends StatelessWidget {
@@ -51,9 +60,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   void _onItemTapped(int index) {
     if (index == 2) {
+      print('DEBUG: Plus button clicked!');
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const CreatorStudioScreen()),
+        MaterialPageRoute(builder: (context) => const MultiPostHubScreen()),
       );
       return;
     }
@@ -71,5 +81,3 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     );
   }
 }
-
-// End of main.dart

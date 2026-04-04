@@ -5,6 +5,18 @@ const { syncDatabase } = require('./models');
 const { loadSessions } = require('./utils/sessionHelper');
 
 const path = require('path');
+const fs = require('fs');
+const crashLogPath = path.join(__dirname, 'crash_log.txt');
+
+process.on('uncaughtException', (err) => {
+    console.error('FATAL UNCAUGHT EXCEPTION:', err);
+    fs.appendFileSync(crashLogPath, `[${new Date().toISOString()}] UNCAUGHT EXCEPTION: ${err.message}\n${err.stack}\n\n`);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('FATAL UNHANDLED REJECTION:', reason);
+    fs.appendFileSync(crashLogPath, `[${new Date().toISOString()}] UNHANDLED REJECTION: ${reason}\n\n`);
+});
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -38,11 +50,13 @@ const metaRoutes = require('./routes/metaRoutes');
 const linkedinRoutes = require('./routes/linkedinRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const mediaRoutes = require('./routes/mediaRoutes');
+const publishRoutes = require('./routes/publishRoutes');
 
 console.log('Setting up routes...');
 app.use('/auth/youtube', youtubeRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/auth/meta', metaRoutes);
+app.use('/api/publish', publishRoutes);
 app.use('/auth/instagram', metaRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/media', mediaRoutes);

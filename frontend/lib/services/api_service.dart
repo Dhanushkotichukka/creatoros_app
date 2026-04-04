@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import '../models/multi_post/post_model.dart';
 
 class ApiService {
-  // Use local IP for mobile device to reach the backend
-  static const String baseUrl = 'http://192.168.1.7:3000';
+  // Use local IP for mobile device, and localhost for web for better developer experience
+  static String get baseUrl => kIsWeb ? 'http://localhost:3000' : 'http://192.168.1.7:3000';
   static bool hasConnected = false; // Mock local persistent state for demo UX
 
   static Future<void> loginWithYouTube() async {
@@ -167,6 +169,42 @@ class ApiService {
     final response = await http.post(Uri.parse('$baseUrl/auth/${platform.toLowerCase()}/disconnect'));
     if (response.statusCode != 200) {
       throw Exception('Failed to disconnect $platform');
+    }
+  }
+
+  static Future<bool> publishPost(PostModel post) async {
+    try {
+      // Build platform data as JSON string
+      Map<String, dynamic> platformJson = {};
+      post.platformData.forEach((key, value) {
+        platformJson[key.name] = {
+          'title': value.title,
+          'description': value.description,
+          'hashtags': value.hashtags,
+          'contentType': value.contentType,
+          'privacyStatus': value.privacyStatus,
+          'madeForKids': value.madeForKids,
+        };
+      });
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/publish'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'title': post.title,
+          'scheduledTime': post.scheduledTime?.toIso8601String() ?? '',
+          'platformData': jsonEncode(platformJson),
+          'mediaUrls': post.mediaPaths, // Passing S3 URLs now
+        }),
+      );
+      
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('Error publishing post: $e');
+      return false;
     }
   }
 }

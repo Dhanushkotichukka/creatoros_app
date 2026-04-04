@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'multi_post_hub_screen.dart';
+import '../models/multi_post/platform_type.dart';
+
 import '../widgets/creator_overview_card.dart';
 import '../widgets/platform_analytics_slider.dart';
 import '../widgets/ai_update_ticker.dart';
@@ -57,15 +60,63 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         }
         
-        // Mocking some AI updates based on the streak or growth
-        List<String> insights = [
-            'Your reel engagement increased by ${data['growth'] ?? '0%'} this week',
-            'Best time to post today: 7:00 PM',
-            'Trending topic detected: AI Tools Explained'
-        ];
+        // Build real AI insights from actual data
+        final growth = data['growth'] ?? '+0%';
+        final totalViews = data['totalViews'] ?? '0';
+        final streak = data['streak'] ?? 0;
+        final topContent = data['topContent'] as List<dynamic>? ?? [];
+        
+        List<String> insights = ['Analyzing your channel performance...'];
+        if (topContent.isNotEmpty) {
+          insights = [];
+          // Insight 1: growth
+          insights.add('📈 Your content reached $totalViews total views — growth is $growth this month');
+          // Insight 2: post streak
+          if (streak > 0) {
+            insights.add('🔥 You\'re on a $streak-day posting streak — keep it up!');
+          }
+          // Insight 3: top video
+          final ytVideos = topContent.where((c) => c['platform'] == 'YouTube').toList();
+          if (ytVideos.isNotEmpty) {
+            // Sort by viewsNum to get top performer
+            ytVideos.sort((a, b) => (b['viewsNum'] ?? 0).compareTo(a['viewsNum'] ?? 0));
+            final topVideo = ytVideos.first;
+            insights.add('🏆 Top video: "${topVideo['title'] ?? ''}\" with ${topVideo['views'] ?? '0'} views');
+          }
+          // Insight 4: best time to post (static for now)
+          insights.add('⏰ Best time to post today: 6:00 PM — 9:00 PM for maximum reach');
+          // Insight 5: trending topic
+          insights.add('🚀 Trending topic detected: AI Tools for Creators — consider making a video now');
+        }
+
+        Set<PlatformType> connectedPlatformTypes = {};
+        for (var p in platforms) {
+          if (p['isConnected'] == true) {
+            if (p['name'] == 'YouTube') connectedPlatformTypes.add(PlatformType.youtube);
+            if (p['name'] == 'Instagram') connectedPlatformTypes.add(PlatformType.instagram);
+            if (p['name'] == 'LinkedIn') connectedPlatformTypes.add(PlatformType.linkedin);
+            if (p['name'] == 'Facebook') connectedPlatformTypes.add(PlatformType.facebook);
+          }
+        }
 
     List<Widget> appBarActions = [
-      IconButton(icon: const Icon(Icons.publish), onPressed: () {}),
+      Padding(
+        padding: const EdgeInsets.only(right: 8.0, top: 8.0, bottom: 8.0),
+        child: ElevatedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => MultiPostHubScreen(initialPlatforms: connectedPlatformTypes)),
+            );
+          },
+          icon: const Icon(Icons.upload, size: 18),
+          label: const Text('Upload'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.blueAccent,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ),
       IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
     ];
 
@@ -107,43 +158,44 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CreatorOverviewCard(data: data),
+            CreatorOverviewCard(
+              data: data,
+              platforms: platforms,
+              onPostRequested: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => MultiPostHubScreen(initialPlatforms: connectedPlatformTypes)),
+                );
+              },
+            ),
             const SizedBox(height: 20),
             PlatformAnalyticsSlider(platforms: platforms),
             const SizedBox(height: 20),
             AIUpdateTicker(updates: insights),
             const SizedBox(height: 20),
-            if (data['topContent'] != null && (data['topContent'] as List).isNotEmpty)
-              ...() {
-                final list = data['topContent'] as List;
-                final yt = list.firstWhere((c) => c['platform'] == 'YouTube', orElse: () => null);
-                final ig = list.firstWhere((c) => c['platform'] == 'Instagram', orElse: () => null);
-                
+            ...() {
+                final list = (data['topContent'] as List?);
+                final ytList = list?.where((c) => c['platform'] == 'YouTube').toList();
+                final igList = list?.where((c) => c['platform'] == 'Instagram').toList();
+
                 return [
-                  if (yt != null) Column(children: [
+                  if (ytList != null && ytList.isNotEmpty) ...[
                     const SectionHeader(title: 'Latest YouTube Content'),
-                    ContentSection(platform: 'YouTube', contentData: yt),
+                    ContentSection(platform: 'YouTube', contentList: ytList),
                     const SizedBox(height: 20),
-                  ]),
-                  if (ig != null) Column(children: [
+                  ],
+                  if (igList != null && igList.isNotEmpty) ...[
                     const SectionHeader(title: 'Latest Instagram Content'),
-                    ContentSection(platform: 'Instagram', contentData: ig),
+                    ContentSection(platform: 'Instagram', contentList: igList),
                     const SizedBox(height: 20),
-                  ]),
-                  if (yt == null && ig == null) const Text('No recent content found'),
+                  ],
+                  if ((ytList == null || ytList.isEmpty) && (igList == null || igList.isEmpty)) ...[
+                    const SectionHeader(title: 'Latest Content'),
+                    ContentSection(platform: 'YouTube'),
+                    const SizedBox(height: 20),
+                  ],
                 ];
-              }()
-            else
-              const Column(
-                children: [
-                   SectionHeader(title: 'Latest YouTube Content'),
-                   ContentSection(platform: 'YouTube'), // Fallback/Mock
-                   SizedBox(height: 20),
-                   SectionHeader(title: 'Latest Instagram Content'),
-                   ContentSection(platform: 'Instagram'), // Fallback/Mock
-                   SizedBox(height: 20),
-                ]
-              ),
+              }(),
             const SectionHeader(title: 'Scheduled Content 🤖'),
             const Placeholder(fallbackHeight: 100), // To be implemented
             const SizedBox(height: 20),
