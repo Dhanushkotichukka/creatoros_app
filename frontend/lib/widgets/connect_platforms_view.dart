@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/view_state_provider.dart';
 
 class ConnectPlatformsView extends StatefulWidget {
   final VoidCallback? onConnected;
@@ -10,7 +12,7 @@ class ConnectPlatformsView extends StatefulWidget {
   State<ConnectPlatformsView> createState() => _ConnectPlatformsViewState();
 }
 
-class _ConnectPlatformsViewState extends State<ConnectPlatformsView> {
+class _ConnectPlatformsViewState extends State<ConnectPlatformsView> with WidgetsBindingObserver {
   Map<String, dynamic> _statuses = {
     'youtube': {'connected': false},
     'instagram': {'connected': false},
@@ -22,7 +24,22 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _fetchStatuses();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh statuses when user returns to app from browser/OAuth
+      _fetchStatuses();
+    }
   }
 
   Future<void> _fetchStatuses() async {
@@ -64,6 +81,9 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> {
 
   @override
   Widget build(BuildContext context) {
+    final viewState = context.watch<ViewStateProvider>();
+    final canPop = Navigator.canPop(context);
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -71,6 +91,18 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> {
         centerTitle: true,
         backgroundColor: Colors.black,
         elevation: 0,
+        leading: (canPop || viewState.showConnectView) 
+          ? IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () {
+                if (canPop) {
+                  Navigator.pop(context);
+                } else {
+                  viewState.setShowConnectView(false);
+                }
+              },
+            )
+          : null,
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),

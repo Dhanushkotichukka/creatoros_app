@@ -220,12 +220,12 @@ class _WebLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final activeColor = theme.colorScheme.secondary;
+    final activeColor = theme.colorScheme.primary;
     final sidebarBg = isDark ? const Color(0xFF1A1A2E) : Colors.white;
-    final borderColor = isDark ? Colors.white12 : const Color(0xFFE5E5E5);
-    final textActive = isDark ? Colors.white : const Color(0xFF1E1E1E);
-    final textInactive = isDark ? const Color(0xFFA0A0B0) : const Color(0xFF6B6B6B);
-    final menuLabel = isDark ? const Color(0xFFA0A0B0) : const Color(0xFFAAAAAA);
+    final borderColor = isDark ? Colors.white10 : const Color(0xFFF1F1F1);
+    final textActive = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final textInactive = isDark ? const Color(0xFFA0A0B0) : const Color(0xFF71717A);
+    final menuLabel = isDark ? const Color(0xFFA0A0B0) : const Color(0xFFA0A0A0);
 
     return Scaffold(
       body: Row(
@@ -242,25 +242,22 @@ class _WebLayout extends StatelessWidget {
                   child: Row(
                     children: [
                       Container(
-                        width: 40,
-                        height: 40,
+                        width: 36,
+                        height: 36,
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF6C63FF), Color(0xFFFF6A3D)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          color: activeColor,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.bolt, color: Colors.white),
+                        child: const Icon(Icons.bolt, color: Colors.white, size: 20),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 12),
                       Text(
                         'CreatorOS',
                         style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
                           color: textActive,
+                          letterSpacing: -0.5,
                         ),
                       ),
                     ],
@@ -288,17 +285,13 @@ class _WebLayout extends StatelessWidget {
                       padding: const EdgeInsets.all(16.0),
                       child: Container(
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF6C63FF), Color(0xFFFF6A3D)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
+                          color: activeColor,
+                          borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF6C63FF).withOpacity(0.35),
-                              blurRadius: 16,
-                              spreadRadius: 0,
+                              color: activeColor.withOpacity(0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),

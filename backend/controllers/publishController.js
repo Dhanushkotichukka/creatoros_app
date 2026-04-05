@@ -172,6 +172,18 @@ exports.publishToAll = async (req, res) => {
         try {
             const { Content } = require('../models');
             if (results.some(r => r.success)) {
+                const platformMetadata = {};
+                results.forEach(res => {
+                    if (res.success && res.id) {
+                        platformMetadata[res.platform.toLowerCase()] = {
+                            id: res.id,
+                            syncedAt: new Date(),
+                            likes: 0,
+                            comments: 0
+                        };
+                    }
+                });
+
                 await Content.create({
                     title: title || 'CreatorOS Multi-Post',
                     description: 'Published via multi-post hub',
@@ -180,7 +192,8 @@ exports.publishToAll = async (req, res) => {
                     status: 'published',
                     mediaUrl: publicMediaUrls[0],
                     thumbnailUrl: hasVideo ? 'https://via.placeholder.com/600x300?text=Video+Thumbnail' : publicMediaUrls[0],
-                    publishedAt: new Date()
+                    publishedAt: new Date(),
+                    platformMetadata
                 });
             }
         } catch (dbErr) { console.error('[PUBLISH] DB Save Error:', dbErr.message); }

@@ -10,6 +10,8 @@ import '../widgets/creator_score_widget.dart';
 import '../widgets/connect_platforms_view.dart';
 import '../widgets/profile_panel.dart';
 import '../services/api_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/view_state_provider.dart';
 
 
 class HomeScreen extends StatefulWidget {
@@ -21,7 +23,6 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<Map<String, dynamic>> _analyticsFuture;
-  bool _showConnectView = false;
 
   @override
   void initState() {
@@ -46,18 +47,20 @@ class _HomeScreenState extends State<HomeScreen> {
         final data = snapshot.data ?? {};
         final platforms = data['platforms'] as List<dynamic>? ?? [];
         
+        final viewState = context.watch<ViewStateProvider>();
+
         if (platforms.isEmpty) {
           return ConnectPlatformsView(onConnected: () => setState(() {
             _analyticsFuture = ApiService.getAnalyticsOverview();
           }));
         }
 
-        if (_showConnectView) {
+        if (viewState.showConnectView) {
           return ConnectPlatformsView(onConnected: () {
             setState(() {
-              _showConnectView = false;
               _analyticsFuture = ApiService.getAnalyticsOverview();
             });
+            viewState.setShowConnectView(false);
           });
         }
         
@@ -138,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (p['name'] == 'LinkedIn') { iconData = Icons.business; color = Colors.blue; }
         appBarActions.add(Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4), 
-          child: Icon(iconData, color: color, size: 20)
+          child: Icon(iconData, color: color.withOpacity(0.8), size: 18)
         ));
       }
     }
@@ -146,10 +149,10 @@ class _HomeScreenState extends State<HomeScreen> {
     appBarActions.add(
       TextButton.icon(
         onPressed: () {
-          setState(() { _showConnectView = true; });
+          context.read<ViewStateProvider>().setShowConnectView(true);
         },
-        icon: const Icon(Icons.add_link, color: Colors.purpleAccent, size: 20),
-        label: const Text('Connect', style: TextStyle(color: Colors.purpleAccent, fontWeight: FontWeight.bold)),
+        icon: Icon(Icons.add_link, color: Theme.of(context).colorScheme.primary, size: 20),
+        label: Text('Connect', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w800)),
       )
     );
 
@@ -165,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hi, Vasanth 🏠', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Hi, Vasanth 👋', style: Theme.of(context).textTheme.titleLarge),
         actions: appBarActions,
       ),
       body: SingleChildScrollView(
@@ -235,14 +238,10 @@ class SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12, top: 12),
       child: Text(
         title,
-        style: TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.bold,
-          color: isDark ? Colors.white : const Color(0xFF1E1E1E),
-        ),
+        style: Theme.of(context).textTheme.titleMedium,
       ),
     );
   }
@@ -287,16 +286,19 @@ class _ProfileAvatarState extends State<_ProfileAvatar>
           height: 36,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6C63FF), Color(0xFFFF6A3D)],
+            gradient: LinearGradient(
+              colors: [
+                Theme.of(context).colorScheme.primary,
+                Theme.of(context).colorScheme.primary.withOpacity(0.7),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF6C63FF).withOpacity(_pulse.value * 0.5),
-                blurRadius: 12 * _pulse.value,
-                spreadRadius: 2 * _pulse.value,
+                color: Theme.of(context).colorScheme.primary.withOpacity(_pulse.value * 0.4),
+                blurRadius: 10 * _pulse.value,
+                spreadRadius: 1 * _pulse.value,
               ),
             ],
           ),

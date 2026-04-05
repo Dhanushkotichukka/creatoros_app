@@ -41,6 +41,10 @@ const Content = sequelize.define('Content', {
   aiMetadata: {
     type: DataTypes.JSON,
     defaultValue: {}, // stores things like AI suggestions, score, scripts used
+  },
+  platformMetadata: {
+    type: DataTypes.JSON,
+    defaultValue: {}, // stores platform-specific IDs, engagement stats, etc.
   }
 }, {
   timestamps: true,

@@ -1,11 +1,15 @@
 {
-  "timestamp": "2026-04-05T03:32:48.407Z",
+  "timestamp": "2026-04-05T12:18:11.069Z",
   "results": [
     {
-      "success": true,
       "platform": "Instagram",
-      "id": "17969091846012877",
-      "postType": "CAROUSEL"
+      "success": false,
+      "error": "Instagram Error: An unexpected error has occurred. Please retry your request later. "
+    },
+    {
+      "success": true,
+      "platform": "LinkedIn",
+      "id": "urn:li:share:7446531629398945792"
     }
   ]
 }

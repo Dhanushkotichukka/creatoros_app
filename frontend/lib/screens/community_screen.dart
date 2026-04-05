@@ -13,14 +13,15 @@ class CommunityScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Community', style: TextStyle(fontWeight: FontWeight.bold)),
-          bottom: const TabBar(
-            tabs: [
+          bottom: TabBar(
+            tabs: const [
               Tab(text: 'My AI'),
               Tab(text: 'Groups'),
               Tab(text: 'Master AI'),
             ],
-            indicatorColor: Colors.deepPurpleAccent,
-            labelColor: Colors.deepPurpleAccent,
+            indicatorColor: Theme.of(context).colorScheme.primary,
+            labelColor: Theme.of(context).colorScheme.primary,
+            labelStyle: const TextStyle(fontWeight: FontWeight.w800),
           ),
         ),
         body: const TabBarView(

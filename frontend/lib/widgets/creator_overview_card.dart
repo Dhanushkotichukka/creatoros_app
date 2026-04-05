@@ -20,18 +20,17 @@ class CreatorOverviewCard extends StatelessWidget {
       }
     }
 
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 0.5,
+      shadowColor: Colors.black.withOpacity(0.05),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [Colors.deepPurple.shade700, Colors.deepPurple.shade400],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          borderRadius: BorderRadius.circular(24),
+          color: isDark ? theme.cardColor : Colors.white,
         ),
         child: Column(
           children: [
@@ -40,22 +39,29 @@ class CreatorOverviewCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 26,
-                      backgroundColor: Colors.white24,
-                      backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                      child: avatarUrl == null
-                          ? const Icon(Icons.person, color: Colors.white, size: 26)
-                          : null,
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.2), width: 2),
+                      ),
+                      child: CircleAvatar(
+                        radius: 28,
+                        backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                        child: avatarUrl == null
+                            ? Icon(Icons.person, color: theme.colorScheme.primary, size: 28)
+                            : null,
+                      ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Welcome back,', style: TextStyle(color: Colors.white60, fontSize: 12)),
+                        Text('Welcome back,', style: theme.textTheme.bodySmall),
                         Text(
                           channelName,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, color: theme.colorScheme.primary),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -67,59 +73,69 @@ class CreatorOverviewCard extends StatelessWidget {
                   children: [
                     Text(
                       '${data['totalViews'] ?? '0'} Views',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, fontSize: 24),
                     ),
-                    const Text('All Platforms', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text('Total Reach', style: theme.textTheme.bodySmall),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.local_fire_department, color: Colors.orange),
-                    const SizedBox(width: 5),
+                    Icon(Icons.local_fire_department, color: theme.colorScheme.primary, size: 20),
+                    const SizedBox(width: 6),
                     Text(
                       '${data['streak'] ?? '0'} Day Streak',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800),
                     ),
                   ],
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.green.shade100),
+                  ),
                   child: Text(
-                    '⬆${data['growth'] ?? '+0%'} from last month',
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                    '↑${data['growth'] ?? '+0%'} from last month',
+                    style: TextStyle(color: Colors.green.shade700, fontSize: 12, fontWeight: FontWeight.w800),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                ElevatedButton.icon(
-                  onPressed: onPostRequested,
-                  icon: const Icon(Icons.video_call, size: 16),
-                  label: const Text('Create Reel'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.35),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: onPostRequested,
+                    icon: const Icon(Icons.video_call, size: 18),
+                    label: const Text('Create Reel'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
                   ),
                 ),
-                ElevatedButton.icon(
-                  onPressed: onPostRequested,
-                  icon: const Icon(Icons.upload, size: 16),
-                  label: const Text('Upload Video'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black.withOpacity(0.35),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: onPostRequested,
+                    icon: const Icon(Icons.upload, size: 18),
+                    label: const Text('Upload Video'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey.shade200,
+                      foregroundColor: Colors.black,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
                   ),
                 ),
               ],

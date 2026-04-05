@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
-import '../widgets/analytics/performance_card.dart';
+import '../widgets/analytics/main_performance_chart.dart';
+import '../widgets/analytics/stat_grid.dart';
 import '../widgets/analytics/ai_suggestions.dart';
 import '../widgets/analytics/platform_deep_view.dart';
-import '../widgets/analytics/creator_health.dart';
-import '../widgets/analytics/rotating_greeting.dart';
 import '../widgets/analytics/top_content_list.dart';
 import '../widgets/analytics/real_time_data.dart';
 import '../widgets/connect_platforms_view.dart';
 import '../services/api_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/view_state_provider.dart';
 
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -19,7 +20,6 @@ class AnalyticsScreen extends StatefulWidget {
 class _AnalyticsScreenState extends State<AnalyticsScreen> {
   String _selectedPlatform = 'Overview';
   late Future<Map<String, dynamic>> _analyticsFuture;
-  bool _showConnectView = false;
 
   @override
   void initState() {
@@ -29,6 +29,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analytics', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -51,9 +52,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     _buildFilterChip('Overview'),
                     ...connectedNames.map((name) => _buildFilterChip(name)),
                     IconButton(
-                      icon: const Icon(Icons.add_link, color: Colors.deepPurpleAccent), 
+                      icon: Icon(Icons.add_link, color: theme.colorScheme.primary), 
                       onPressed: () {
-                        setState(() { _showConnectView = true; });
+                        context.read<ViewStateProvider>().setShowConnectView(true);
                       }
                     ),
                     const SizedBox(width: 8),
@@ -80,32 +81,32 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           final data = snapshot.data ?? {};
           final platforms = data['platforms'] as List<dynamic>? ?? [];
           
+          final viewState = context.watch<ViewStateProvider>();
+          
           if (_selectedPlatform == 'Overview') {
             final connectedPlatforms = platforms.where((p) => p['isConnected'] == true).toList();
-            if (connectedPlatforms.isEmpty || _showConnectView) {
+            if (connectedPlatforms.isEmpty || viewState.showConnectView) {
               return ConnectPlatformsView(onConnected: () => setState(() {
-                _showConnectView = false;
                 _analyticsFuture = ApiService.getAnalyticsOverview();
+                viewState.setShowConnectView(false);
               }));
             }
           }
 
-          if (_showConnectView) {
+          if (viewState.showConnectView) {
              return ConnectPlatformsView(onConnected: () => setState(() {
-                _showConnectView = false;
                 _analyticsFuture = ApiService.getAnalyticsOverview();
+                viewState.setShowConnectView(false);
              }));
           }
 
           if (_selectedPlatform != 'Overview') {
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
-              child: PlatformDeepView(platform: _selectedPlatform, data: snapshot.data ?? {}),
+              child: PlatformDeepView(platform: _selectedPlatform, data: data),
             );
           }
 
-          final health = data['creatorHealth'] ?? 'Happy';
-          
           List<String> aiInsights = [
             'Your reel engagement increased by ${data['growth'] ?? '0%'} this week',
             'Best time to post today: based on your audience activity pattern',
@@ -113,25 +114,93 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ];
 
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                RotatingGreeting(platforms: platforms),
-                const SizedBox(height: 10),
-                const Text('Hold graph to toggle numbers', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                const SizedBox(height: 10),
-                PerformanceCard(data: data),
-                const SizedBox(height: 20),
-                AISuggestions(suggestions: aiInsights),
-                const SizedBox(height: 20),
-                const SectionHeader(title: 'Top Content'),
-                const SizedBox(height: 12),
-                TopContentList(topContent: data['topContent'] as List<dynamic>? ?? []),
-                const SizedBox(height: 24),
-                const SectionHeader(title: 'Real-Time Data'),
-                const SizedBox(height: 12),
-                RealTimeDataCard(data: data['realTimeData'] as Map<String, dynamic>?),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Dashboard', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold)),
+                        Text('Track your performance across all platforms', style: theme.textTheme.bodySmall),
+                      ],
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () {},
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Add Widget'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.onSurface,
+                        foregroundColor: theme.colorScheme.surface,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                StatGrid(data: data),
+                const SizedBox(height: 32),
+                Card(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Analytics Overview', style: theme.textTheme.titleMedium),
+                            DropdownButton<String>(
+                              value: 'This year',
+                              onChanged: (v) {},
+                              underline: const SizedBox(),
+                              items: const [
+                                DropdownMenuItem(value: 'This year', child: Text('This year')),
+                                DropdownMenuItem(value: 'This month', child: Text('This month')),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      MainPerformanceChart(data: data),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SectionHeader(title: 'Top Content'),
+                          const SizedBox(height: 12),
+                          TopContentList(topContent: data['topContent'] as List<dynamic>? ?? []),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(
+                      flex: 1,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SectionHeader(title: 'AI Insights'),
+                          const SizedBox(height: 12),
+                          AISuggestions(suggestions: aiInsights),
+                          const SizedBox(height: 24),
+                          const SectionHeader(title: 'Real-Time'),
+                          const SizedBox(height: 12),
+                          RealTimeDataCard(data: data['realTimeData'] as Map<String, dynamic>?),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 40),
               ],
             ),
@@ -142,11 +211,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   Widget _buildFilterChip(String label, {IconData? icon}) {
+    final theme = Theme.of(context);
     bool isSelected = _selectedPlatform == label;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: FilterChip(
-        avatar: icon != null ? Icon(icon, size: 16) : null,
+        avatar: icon != null ? Icon(icon, size: 16, color: isSelected ? theme.colorScheme.onPrimary : theme.colorScheme.primary) : null,
         label: Text(label),
         selected: isSelected,
         onSelected: (val) {
@@ -159,12 +229,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             }
           });
         },
-        selectedColor: Colors.deepPurpleAccent.withOpacity(0.3),
+        selectedColor: theme.colorScheme.primary.withOpacity(0.2),
+        labelStyle: TextStyle(color: isSelected ? theme.colorScheme.primary : theme.colorScheme.onSurface),
       ),
     );
   }
 }
-
 
 class SectionHeader extends StatelessWidget {
   final String title;
@@ -175,7 +245,7 @@ class SectionHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
         TextButton(onPressed: () {}, child: const Text('View All')),
       ],
     );

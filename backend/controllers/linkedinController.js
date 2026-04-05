@@ -1,7 +1,11 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
 require('dotenv').config();
+
+// Persistent agent to force IPv4 and reduce SSL handshake overhead
+const ipv4Agent = new https.Agent({ family: 4, keepAlive: true });
 
 const CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
@@ -161,6 +165,13 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
         'LinkedIn-Version': '202501',
         'Content-Type': 'application/json',
     };
+    
+    // Legacy v2 endpoints do not support the LinkedIn-Version header
+    const legacyHeaders = { ...commonHeaders };
+    delete legacyHeaders['LinkedIn-Version'];
+    
+    // Global axios config for this request chain
+    const axiosOpts = { httpsAgent: ipv4Agent, timeout: 60000 };
 
     // ── Helper: text-only UGC post ───────────────────────────────────────────
     const buildPostText = () =>
@@ -248,13 +259,13 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
                 initRes = await axios.post(
                     'https://api.linkedin.com/rest/videos?action=initializeUpload',
                     { initializeUploadRequest: { owner: author, fileSizeBytes: stats.size, uploadCaptions: false, uploadThumbnail: false } },
-                    { headers: { ...commonHeaders, 'X-RestLi-Method': 'action' }, timeout: 25000 }
+                    { headers: { ...commonHeaders, 'X-RestLi-Method': 'action' }, ...axiosOpts }
                 );
             } else {
                 initRes = await axios.post(
                     'https://api.linkedin.com/rest/images?action=initializeUpload',
                     { initializeUploadRequest: { owner: author } },
-                    { headers: { ...commonHeaders, 'X-RestLi-Method': 'action' }, timeout: 25000 }
+                    { headers: { ...commonHeaders, 'X-RestLi-Method': 'action' }, ...axiosOpts }
                 );
             }
 
@@ -293,7 +304,7 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
                             }],
                         },
                     },
-                    { headers: commonHeaders, timeout: 20000 }
+                    { headers: legacyHeaders, ...axiosOpts }
                 );
 
                 const regValue = regRes.data?.value;
@@ -342,7 +353,7 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
                 headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': stats.size },
                 maxBodyLength: Infinity,
                 maxContentLength: Infinity,
-                timeout: 60000,
+                ...axiosOpts
             });
             console.log(`[LINKEDIN] Step 2: ✅ Binary uploaded.`);
         } catch (uploadErr) {
@@ -365,11 +376,15 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
             await new Promise(r => setTimeout(r, 3000)); // brief settle time
         }
 
-        registeredAssets.push({
+        const assetObj = {
             status: 'READY',
-            media: assetUrn,
-            title: { text: metadata.title || 'CreatorOS Media' },
-        });
+            media: assetUrn
+        };
+        // Per-item titles are rejected for IMAGE category in ugcPosts (Reserved for ARTICLE/VIDEO)
+        if (videosCount > 0) {
+            assetObj.title = { text: metadata.title || 'CreatorOS Media' };
+        }
+        registeredAssets.push(assetObj);
     }
 
     // ── Final Step: Create the ugcPost ───────────────────────────────────────
@@ -392,14 +407,14 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
 
     try {
         const postRes = await axios.post('https://api.linkedin.com/v2/ugcPosts', ugcPayload, {
-            headers: commonHeaders,
-            timeout: 15000,
+            headers: legacyHeaders,
+            ...axiosOpts,
         });
         const finalId = postRes.data?.id || postRes.headers?.['x-restli-id'] || 'urn:li:share:success';
         console.log(`[LINKEDIN] ✅ Media post SUCCESS! ID: ${finalId}`);
         return { success: true, platform: 'LinkedIn', id: finalId };
     } catch (postErr) {
-        console.error('[LINKEDIN] ❌ Media ugcPost failed:', postErr.response?.data || postErr.message);
+        console.error('[LINKEDIN] ❌ Media ugcPost failed:', JSON.stringify(postErr.response?.data || postErr.message, null, 2));
         console.warn('[LINKEDIN] ⚠️  Last-chance text-only fallback...');
         return await postTextOnly();
     }
@@ -422,7 +437,7 @@ async function pollLinkedInStatus(assetUrn, token, isVid) {
                     'X-Restli-Protocol-Version': '2.0.0',
                     'LinkedIn-Version': '202501',
                 },
-                timeout: 10000,
+                ...axiosOpts
             });
             const status = res.data?.status || res.data?.downloadStatus;
             console.log(`[LINKEDIN] ${mediaLabel} status: ${status} (attempt ${i + 1})`);
@@ -460,19 +475,34 @@ exports.getLinkedInAnalytics = async (req, res) => {
 
 exports.fetchRecentPosts = async (accessToken, authorUrn) => {
     try {
-        const apiHeaders = { 'Authorization': `Bearer ${accessToken}`, 'X-Restli-Protocol-Version': '2.0.0', 'LinkedIn-Version': '202602' };
+        const apiHeaders = { 
+            'Authorization': `Bearer ${accessToken}`, 
+            'X-Restli-Protocol-Version': '2.0.0'
+        };
         let posts = [];
         try {
-            const response = await axios.get(`https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${encodeURIComponent(authorUrn)})&count=10`, { headers: apiHeaders });
+            // Tier 1: Try UGC Posts API (v2)
+            const response = await axios.get(`https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${encodeURIComponent(authorUrn)})&count=10`, { 
+                headers: apiHeaders, 
+                timeout: 10000,
+                httpsAgent: ipv4Agent 
+            });
             posts = response.data.elements || [];
         } catch (ugcErr) {
             try {
-                const shareRes = await axios.get(`https://api.linkedin.com/v2/shares?q=owners&owners=List(${encodeURIComponent(authorUrn)})&count=10`, { headers: apiHeaders });
+                // Tier 2: Try older Shares API (v2)
+                const shareRes = await axios.get(`https://api.linkedin.com/v2/shares?q=owners&owners=List(${encodeURIComponent(authorUrn)})&count=10`, { 
+                    headers: apiHeaders, 
+                    timeout: 10000,
+                    httpsAgent: ipv4Agent 
+                });
                 posts = shareRes.data.elements || [];
             } catch (shareErr) {
-                return []; 
+                // If both fail, throw so the router can trigger DB fallback
+                throw new Error('LINKEDIN_API_RESTRICTED');
             }
         }
+
         console.log(`[SYNC] LinkedIn found ${posts.length} posts`);
         return posts.map(p => {
             let desc = 'LinkedIn Post';
@@ -492,7 +522,8 @@ exports.fetchRecentPosts = async (accessToken, authorUrn) => {
             };
         });
     } catch (err) {
-        return [];
+        console.warn(`[SYNC] LinkedIn API restricted or failed: ${err.message}`);
+        throw new Error('LINKEDIN_RESTRICTED');
     }
 };
 

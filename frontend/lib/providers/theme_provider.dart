@@ -40,23 +40,22 @@ class ThemeProvider extends ChangeNotifier {
     await prefs.setBool(_themeKey, false);
   }
 
-  // ────────────────── LIGHT THEME ──────────────────
+  // ────────────────── LIGHT THEME (Veselty Inspired) ──────────────────
   static ThemeData get lightTheme {
-    const primary = Color(0xFFFF6A3D);
-    const accent = Color(0xFFFFB199);
-    const bg = Color(0xFFFAFAF8);
+    const orange = Color(0xFFF16E00);
+    const bg = Color(0xFFF8F9FA);
     const surface = Color(0xFFFFFFFF);
-    const textPrimary = Color(0xFF1E1E1E);
-    const textSecondary = Color(0xFF6B6B6B);
-    const border = Color(0xFFE5E5E5);
+    const textPrimary = Color(0xFF1A1A1A);
+    const textSecondary = Color(0xFF71717A);
+    const border = Color(0xFFE2E8F0);
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
       scaffoldBackgroundColor: bg,
       colorScheme: const ColorScheme.light(
-        primary: primary,
-        secondary: accent,
+        primary: orange,
+        secondary: orange,
         surface: surface,
         onSurface: textPrimary,
         outline: border,
@@ -66,48 +65,50 @@ class ThemeProvider extends ChangeNotifier {
         backgroundColor: surface,
         foregroundColor: textPrimary,
         elevation: 0,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
+        centerTitle: false,
         titleTextStyle: TextStyle(
           color: textPrimary,
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
+          fontSize: 20,
+          fontWeight: FontWeight.w800,
           fontFamily: 'Inter',
         ),
         iconTheme: IconThemeData(color: textPrimary),
       ),
       cardTheme: CardThemeData(
         color: surface,
-        elevation: 0,
+        elevation: 0.5,
+        shadowColor: Colors.black.withOpacity(0.05),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(24),
           side: const BorderSide(color: border, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
+          backgroundColor: orange,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontFamily: 'Inter'),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'Inter'),
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: surface,
-        selectedItemColor: primary,
+        selectedItemColor: orange,
         unselectedItemColor: textSecondary,
-        elevation: 0,
+        elevation: 8,
         type: BottomNavigationBarType.fixed,
       ),
       textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: textPrimary, fontFamily: 'Inter'),
-        bodyMedium: TextStyle(color: textPrimary, fontFamily: 'Inter'),
-        bodySmall: TextStyle(color: textSecondary, fontFamily: 'Inter'),
-        titleLarge: TextStyle(color: textPrimary, fontFamily: 'Inter', fontWeight: FontWeight.w700),
-        titleMedium: TextStyle(color: textPrimary, fontFamily: 'Inter', fontWeight: FontWeight.w600),
+        displayLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w800, fontSize: 32),
+        displayMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w700, fontSize: 28),
+        titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w800, fontSize: 22),
+        titleMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w700, fontSize: 18),
+        bodyLarge: TextStyle(color: textPrimary, fontSize: 16),
+        bodyMedium: TextStyle(color: textPrimary, fontSize: 14),
+        bodySmall: TextStyle(color: textSecondary, fontSize: 12),
       ),
       dividerColor: border,
       iconTheme: const IconThemeData(color: textSecondary),

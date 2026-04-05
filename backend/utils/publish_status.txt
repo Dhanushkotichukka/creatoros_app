@@ -1,3 +1,4 @@
-[INSTAGRAM] Started polling for container: 18082706108074227 (isVideo: false)
-[9:02:44 am] Attempt 1: FINISHED
+[INSTAGRAM] Started polling for container: 18082777451074227 (isVideo: true)
+[5:45:47 pm] Polling Warning: Invalid parameter
+[5:45:58 pm] Attempt 2: FINISHED
 [INSTAGRAM] SUCCESS: Ready to publish!

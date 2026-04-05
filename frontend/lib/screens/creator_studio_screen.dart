@@ -7,9 +7,10 @@ class CreatorStudioScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Creator Studio', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Creator Studio', style: Theme.of(context).textTheme.titleLarge),
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context)),
       ),
       body: SingleChildScrollView(
@@ -25,8 +26,8 @@ class CreatorStudioScreen extends StatelessWidget {
             const SizedBox(height: 30),
             const Text('Recent Creative Projects', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
-            _buildProjectCard('Bahubali Edit', '2 hours ago', Icons.movie),
-            _buildProjectCard('AI Thumbnail', 'Yesterday', Icons.image),
+            _buildProjectCard(context, 'Bahubali Edit', '2 hours ago', Icons.movie),
+            _buildProjectCard(context, 'AI Thumbnail', 'Yesterday', Icons.image),
             const SizedBox(height: 20),
             Center(
               child: ElevatedButton.icon(
@@ -34,9 +35,10 @@ class CreatorStudioScreen extends StatelessWidget {
                 icon: const Icon(Icons.add),
                 label: const Text('Create New Project'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurpleAccent,
+                  backgroundColor: theme.colorScheme.primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
               ),
             ),
@@ -46,19 +48,22 @@ class CreatorStudioScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildProjectCard(String title, String time, IconData icon) {
+  Widget _buildProjectCard(BuildContext context, String title, String time, IconData icon) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
         leading: Container(
-          width: 50,
-          height: 50,
-          decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: Colors.deepPurpleAccent),
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: Theme.of(context).colorScheme.primary),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text('Last edited: $time', style: const TextStyle(fontSize: 12)),
-        trailing: const Icon(Icons.play_arrow, color: Colors.white70),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        subtitle: Text('Last edited: $time', style: Theme.of(context).textTheme.bodySmall),
+        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
         onTap: () {},
       ),
     );

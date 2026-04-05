@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'creator_health.dart';
+import 'main_performance_chart.dart';
 
 class PerformanceCard extends StatefulWidget {
   final Map<String, dynamic> data;
@@ -15,6 +16,7 @@ class _PerformanceCardState extends State<PerformanceCard> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return GestureDetector(
       onLongPress: () {
         setState(() {
@@ -22,7 +24,6 @@ class _PerformanceCardState extends State<PerformanceCard> {
         });
       },
       child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: Container(
           padding: const EdgeInsets.all(20),
           width: double.infinity,
@@ -34,7 +35,7 @@ class _PerformanceCardState extends State<PerformanceCard> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Overall Health', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    Text('Overall Health', style: theme.textTheme.bodySmall),
                     const SizedBox(height: 12),
                     CreatorHealth(
                       engagementRate: (widget.data['engagementRate'] ?? 0.06).toDouble(),
@@ -44,11 +45,14 @@ class _PerformanceCardState extends State<PerformanceCard> {
                 ),
               ),
               const SizedBox(width: 10),
-              Container(width: 1, color: Colors.grey[800]),
+              VerticalDivider(color: theme.dividerColor.withOpacity(0.1), width: 1),
               const SizedBox(width: 10),
               Expanded(
                 flex: 3,
-                child: _isQuickSummary ? _buildQuickSummary() : _buildGraphPlaceholder(),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: _isQuickSummary ? _buildQuickSummary() : _buildMiniGraph(),
+                ),
               ),
             ],
           ),
@@ -57,32 +61,41 @@ class _PerformanceCardState extends State<PerformanceCard> {
     );
   }
 
-  Widget _buildGraphPlaceholder() {
-    final String views = widget.data['totalViews'] ?? '0';
+  Widget _buildMiniGraph() {
+    final theme = Theme.of(context);
+    final String views = widget.data['totalViews']?.toString() ?? widget.data['views']?.toString() ?? '0';
+    
+    // Check if we have graphData
+    final hasGraph = widget.data.containsKey('graphData');
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text('Performance Graph', style: TextStyle(color: Colors.grey)),
-        const SizedBox(height: 20),
-        const Icon(Icons.show_chart, size: 80, color: Colors.deepPurpleAccent),
-        const SizedBox(height: 20),
-        Text('Views: $views', style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text('Engagement Rate', style: theme.textTheme.bodySmall),
+        const SizedBox(height: 10),
+        Expanded(
+          child: hasGraph 
+            ? IgnorePointer(child: MainPerformanceChart(data: widget.data))
+            : Icon(Icons.auto_graph, size: 60, color: theme.colorScheme.primary.withOpacity(0.5)),
+        ),
+        const SizedBox(height: 10),
+        Text('Actual Reach: $views', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
       ],
     );
   }
 
   Widget _buildQuickSummary() {
     return Column(
+      key: const ValueKey('summary'),
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text('Quick Summary', style: TextStyle(fontWeight: FontWeight.bold)),
+        Text('Quick Summary', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
-        SummaryItem(label: 'Total Views', value: widget.data['totalViews'] ?? '—'),
-        SummaryItem(label: 'Total Likes', value: widget.data['totalLikes'] ?? '—'),
-        SummaryItem(label: 'Subscribers', value: widget.data['subscribers'] ?? '—'),
-        SummaryItem(label: 'Videos', value: widget.data['videos'] ?? '—'),
-        SummaryItem(label: 'Watch Time', value: widget.data['watchTime'] ?? '—'),
-        SummaryItem(label: 'Growth', value: widget.data['growth'] ?? '—'),
+        SummaryItem(label: 'Total Views', value: (widget.data['totalViews'] ?? widget.data['views'] ?? '—').toString()),
+        SummaryItem(label: 'Total Likes', value: (widget.data['totalLikes'] ?? '—').toString()),
+        SummaryItem(label: 'Subscribers', value: (widget.data['subscribers'] ?? '—').toString()),
+        SummaryItem(label: 'Videos', value: (widget.data['videos'] ?? '—').toString()),
+        SummaryItem(label: 'Growth', value: (widget.data['growth'] ?? '—').toString()),
       ],
     );
   }
@@ -95,13 +108,14 @@ class SummaryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(label, style: theme.textTheme.bodySmall),
+          Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold)),
         ],
       ),
     );

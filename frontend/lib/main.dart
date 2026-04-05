@@ -4,6 +4,7 @@ import 'providers/post_state.dart';
 import 'providers/theme_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/analytics_screen.dart';
+import 'providers/view_state_provider.dart';
 import 'screens/hub_screen.dart';
 import 'screens/community_screen.dart';
 import 'screens/creator_studio_screen.dart';
@@ -16,6 +17,7 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => PostState()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => ViewStateProvider()),
       ],
       child: const CreatorOSApp(),
     ),
@@ -66,6 +68,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       );
       return;
     }
+    
+    // If Home is tapped, reset the view state even if already on Home
+    if (index == 0) {
+      context.read<ViewStateProvider>().resetHome();
+    }
+
     setState(() {
       _selectedIndex = index;
     });
