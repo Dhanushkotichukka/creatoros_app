@@ -49,338 +49,270 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
     final provider = context.watch<PostProvider>();
     final activePost = provider.activePost;
     final connectedPlatforms = provider.connectedPlatforms;
+    final targetPlatforms = provider.targetPlatforms;
     final selectedPlatform = provider.selectedPlatform;
 
     if (connectedPlatforms.isEmpty) {
-      return const SizedBox.shrink();
+      return _buildNoConnectionsState();
     }
 
-    // Ensure selectedPlatform is a connected one, or default to the first connected
-    final platformToDisplay = connectedPlatforms.contains(selectedPlatform)
+    // Ensure selectedPlatform is in targetPlatforms if possible
+    final platformToDisplay = targetPlatforms.contains(selectedPlatform)
         ? selectedPlatform
-        : connectedPlatforms.first;
+        : (targetPlatforms.isNotEmpty ? targetPlatforms.first : connectedPlatforms.first);
 
-    // Use a post frame callback if state needs to sync
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (selectedPlatform != platformToDisplay && context.mounted) {
-        context.read<PostProvider>().setSelectedPlatform(platformToDisplay);
-      }
-    });
-
+    // Sync controllers with current platform metadata
     final currentPlatformContent = activePost.platformData[platformToDisplay] ?? PlatformContent();
     if (_titleController.text != currentPlatformContent.title) {
       _titleController.text = currentPlatformContent.title;
-      _titleController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _titleController.text.length),
-      );
+      _titleController.selection = TextSelection.fromPosition(TextPosition(offset: _titleController.text.length));
     }
     if (_captionController.text != currentPlatformContent.description) {
       _captionController.text = currentPlatformContent.description;
-      _captionController.selection = TextSelection.fromPosition(
-        TextPosition(offset: _captionController.text.length),
-      );
+      _captionController.selection = TextSelection.fromPosition(TextPosition(offset: _captionController.text.length));
     }
 
     return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 4,
+      color: Colors.grey.shade900,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row: Selected Platform (Left) and Connected Icons (Right)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Left: Selected Platform Name
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 14,
-                      backgroundColor: Colors.transparent,
-                      child: Icon(_getPlatformIcon(platformToDisplay), size: 24, color: Colors.blueAccent),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      platformToDisplay.name.replaceFirst(
-                        platformToDisplay.name[0],
-                        platformToDisplay.name[0].toUpperCase(),
-                      ),
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-                // Right: Connected Platform Tabs
-                Row(
-                  children: connectedPlatforms.map((platform) {
-                    final isSelected = platform == platformToDisplay;
-                    return GestureDetector(
-                      onTap: () => context.read<PostProvider>().setSelectedPlatform(platform),
-                      child: Container(
-                        margin: const EdgeInsets.only(left: 8),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: isSelected ? Border.all(color: Colors.redAccent, width: 2) : Border.all(color: Colors.grey.shade800, width: 2),
-                        ),
-                        child: CircleAvatar(
-                          radius: 12,
-                          backgroundColor: Colors.transparent,
-                          child: Icon(
-                            _getPlatformIcon(platform),
-                            size: 14,
-                            color: isSelected ? Colors.redAccent : Colors.grey.shade400,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Content Type Selector
-            Wrap(
-              spacing: 8,
-              children: ['Post', 'Reel', 'Story'].map((type) {
-                final isSelected = currentPlatformContent.contentType == type;
-                return ChoiceChip(
-                  label: Text(type),
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    if (selected) {
-                      context.read<PostProvider>().updateContent(
-                            platformToDisplay,
-                            currentPlatformContent.copyWith(contentType: type),
-                          );
-                    }
-                  },
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  side: BorderSide(color: isSelected ? Colors.blueAccent : Colors.grey.shade800),
-                  backgroundColor: Colors.transparent,
-                  selectedColor: Colors.blueAccent.withAlpha(50),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 12),
-            // Privacy Status Dropdown
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade800),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: currentPlatformContent.privacyStatus,
-                  isExpanded: true,
-                  icon: const Icon(Icons.arrow_drop_down, color: Colors.blueAccent),
-                  dropdownColor: Colors.grey.shade900,
-                  items: ['public', 'unlisted', 'private'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(
-                        value[0].toUpperCase() + value.substring(1),
-                        style: const TextStyle(color: Colors.white70),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    if (newValue != null) {
-                      context.read<PostProvider>().updateContent(
-                            platformToDisplay,
-                            currentPlatformContent.copyWith(privacyStatus: newValue),
-                          );
-                    }
-                  },
+            _buildPlatformSelector(context, targetPlatforms, connectedPlatforms, platformToDisplay),
+            const Divider(height: 32, color: Colors.white10),
+            
+            if (targetPlatforms.contains(platformToDisplay)) ...[
+              _buildPostTypeSelector(context, platformToDisplay, currentPlatformContent),
+              const SizedBox(height: 20),
+              _buildMetadataEditor(context, platformToDisplay, currentPlatformContent, activePost),
+            ] else 
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(
+                  child: Text('Select or Add a platform above to start editing content', style: TextStyle(color: Colors.white54)),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            // Audience (Made for Kids)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade800),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.public, size: 16, color: Colors.grey),
-                      const SizedBox(width: 6),
-                      const Text('Audience', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.grey.shade800, borderRadius: BorderRadius.circular(4)),
-                        child: const Text('Set by you', style: TextStyle(fontSize: 10, color: Colors.white70)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  RadioListTile<bool>(
-                    title: const Text("Yes, it's Made for Kids", style: TextStyle(fontSize: 14, color: Colors.white70)),
-                    value: true,
-                    groupValue: currentPlatformContent.madeForKids,
-                    onChanged: (bool? value) {
-                      if (value != null) {
-                        context.read<PostProvider>().updateContent(platformToDisplay, currentPlatformContent.copyWith(madeForKids: value));
-                      }
-                    },
-                    contentPadding: EdgeInsets.zero,
-                    visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
-                    dense: true,
-                    activeColor: Colors.blueAccent,
-                  ),
-                  RadioListTile<bool>(
-                    title: const Text("No, it's not 'Made for Kids'", style: TextStyle(fontSize: 14, color: Colors.white70)),
-                    value: false,
-                    groupValue: currentPlatformContent.madeForKids,
-                    onChanged: (bool? value) {
-                      if (value != null) {
-                        context.read<PostProvider>().updateContent(platformToDisplay, currentPlatformContent.copyWith(madeForKids: value));
-                      }
-                    },
-                    contentPadding: EdgeInsets.zero,
-                    visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
-                    dense: true,
-                    activeColor: Colors.blueAccent,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            // Title Input
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                hintText: 'Add a title...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding: const EdgeInsets.all(12),
-              ),
-              onChanged: (val) {
-                context.read<PostProvider>().updateContent(
-                      platformToDisplay,
-                      currentPlatformContent.copyWith(title: val),
-                    );
-              },
-            ),
-            const SizedBox(height: 12),
-            // Caption Input
-            TextField(
-              controller: _captionController,
-              maxLines: 4,
-              decoration: InputDecoration(
-                hintText: 'Write a caption...',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                contentPadding: const EdgeInsets.all(12),
-              ),
-              onChanged: (val) {
-                context.read<PostProvider>().updateContent(
-                      platformToDisplay,
-                      currentPlatformContent.copyWith(description: val),
-                    );
-              },
-            ),
-            if (currentPlatformContent.hashtags.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8.0),
-                child: Wrap(
-                  spacing: 4,
-                  children: currentPlatformContent.hashtags.map((tag) {
-                    return Chip(
-                      label: Text(tag, style: const TextStyle(fontSize: 12)),
-                      padding: EdgeInsets.zero,
-                      backgroundColor: Colors.blueAccent.withAlpha(50),
-                      onDeleted: () {
-                        final newTags = List<String>.from(currentPlatformContent.hashtags)
-                          ..remove(tag);
-                        context.read<PostProvider>().updateContent(
-                              platformToDisplay,
-                              currentPlatformContent.copyWith(hashtags: newTags),
-                            );
-                      },
-                    );
-                  }).toList(),
-                ),
-              ),
-            const SizedBox(height: 12),
-            // AI Action Buttons
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _isGeneratingCaption
-                      ? null
-                      : () async {
-                          setState(() => _isGeneratingCaption = true);
-                          final caption = await AIService.generateCaption(
-                            activePost.title,
-                            currentPlatformContent.description,
-                          );
-                          if (context.mounted) {
-                            context.read<PostProvider>().updateContent(
-                                  platformToDisplay,
-                                  currentPlatformContent.copyWith(description: caption),
-                                );
-                          }
-                          setState(() => _isGeneratingCaption = false);
-                        },
-                  icon: _isGeneratingCaption
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const SizedBox.shrink(),
-                  label: const Text('write Caption'),
-                  style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: _isGeneratingTags
-                      ? null
-                      : () async {
-                          setState(() => _isGeneratingTags = true);
-                          final tags = await AIService.generateHashtags(
-                            activePost.title,
-                            currentPlatformContent.description,
-                          );
-                          if (context.mounted) {
-                            context.read<PostProvider>().updateContent(
-                                  platformToDisplay,
-                                  currentPlatformContent.copyWith(hashtags: tags),
-                                );
-                          }
-                          setState(() => _isGeneratingTags = false);
-                        },
-                  icon: _isGeneratingTags
-                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const SizedBox.shrink(),
-                  label: const Text('#tags'),
-                  style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
-                ),
-              ],
-            )
           ],
         ),
       ),
     );
   }
 
+  Widget _buildNoConnectionsState() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(color: Colors.grey.shade900, borderRadius: BorderRadius.circular(12)),
+      child: const Column(
+        children: [
+          Icon(Icons.link_off, size: 40, color: Colors.white24),
+          SizedBox(height: 12),
+          Text('No Social Platforms Connected', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          Text('Connect your accounts in Settings to start posting', style: TextStyle(color: Colors.white54, fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlatformSelector(BuildContext context, Set<PlatformType> targets, Set<PlatformType> connected, PlatformType active) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Post to these platforms:', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ...targets.map((platform) => _buildPlatformIcon(context, platform, platform == active)),
+              _buildAddPlatformButton(context, targets, connected),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlatformIcon(BuildContext context, PlatformType platform, bool isSelected) {
+    return GestureDetector(
+      onTap: () => context.read<PostProvider>().setSelectedPlatform(platform),
+      child: Container(
+        margin: const EdgeInsets.only(right: 12),
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blueAccent.withAlpha(30) : Colors.white.withAlpha(5),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10, width: 2),
+        ),
+        child: Stack(
+          children: [
+            Center(child: Icon(_getPlatformIcon(platform), size: 28, color: isSelected ? Colors.blueAccent : Colors.white60)),
+            Positioned(
+              right: -2,
+              top: -2,
+              child: GestureDetector(
+                onTap: () => context.read<PostProvider>().toggleTargetPlatform(platform),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                  child: const Icon(Icons.close, size: 10, color: Colors.white70),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddPlatformButton(BuildContext context, Set<PlatformType> targets, Set<PlatformType> connected) {
+    final remaining = connected.where((p) => !targets.contains(p)).toList();
+    if (remaining.isEmpty) return const SizedBox.shrink();
+
+    return IconButton(
+      onPressed: () => _showAddPlatformModal(context, remaining),
+      icon: const Icon(Icons.add_circle_outline, color: Colors.blueAccent, size: 32),
+      padding: const EdgeInsets.all(12),
+    );
+  }
+
+  Widget _buildPostTypeSelector(BuildContext context, PlatformType platform, PlatformContent content) {
+    final List<String> types = ['Post', 'Reel', 'Story'];
+    if (platform == PlatformType.youtube) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Content Type', style: TextStyle(color: Colors.white54, fontSize: 11)),
+        const SizedBox(height: 8),
+        Row(
+          children: types.map((type) {
+            final isSelected = content.contentType == type;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: ChoiceChip(
+                label: Text(type),
+                selected: isSelected,
+                onSelected: (val) {
+                  if (val) context.read<PostProvider>().updateContent(platform, content.copyWith(contentType: type));
+                },
+                backgroundColor: Colors.transparent,
+                selectedColor: Colors.blueAccent,
+                labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.white70, fontSize: 13),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetadataEditor(BuildContext context, PlatformType platform, PlatformContent content, dynamic activePost) {
+    return Column(
+      children: [
+        TextField(
+          controller: _titleController,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          decoration: InputDecoration(
+            hintText: 'Enter title (Platform specific)',
+            hintStyle: const TextStyle(color: Colors.white24),
+            prefixIcon: const Icon(Icons.title, color: Colors.white24),
+            filled: true,
+            fillColor: Colors.white.withAlpha(5),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          ),
+          onChanged: (val) => context.read<PostProvider>().updateContent(platform, content.copyWith(title: val)),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _captionController,
+          maxLines: 5,
+          style: const TextStyle(color: Colors.white70),
+          decoration: InputDecoration(
+            hintText: 'Write caption...',
+            hintStyle: const TextStyle(color: Colors.white24),
+            filled: true,
+            fillColor: Colors.white.withAlpha(5),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          ),
+          onChanged: (val) => context.read<PostProvider>().updateContent(platform, content.copyWith(description: val)),
+        ),
+        const SizedBox(height: 12),
+        _buildAIButtons(context, platform, content, activePost),
+      ],
+    );
+  }
+
+  Widget _buildAIButtons(BuildContext context, PlatformType platform, PlatformContent content, dynamic activePost) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        TextButton.icon(
+          onPressed: _isGeneratingCaption ? null : () => _generateCaption(context, platform, content, activePost),
+          icon: _isGeneratingCaption ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome, size: 16),
+          label: const Text('AI Caption', style: TextStyle(fontSize: 12)),
+          style: TextButton.styleFrom(foregroundColor: Colors.purpleAccent),
+        ),
+        TextButton.icon(
+          onPressed: _isGeneratingTags ? null : () => _generateTags(context, platform, content, activePost),
+          icon: _isGeneratingTags ? const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.tag, size: 16),
+          label: const Text('AI Tags', style: TextStyle(fontSize: 12)),
+          style: TextButton.styleFrom(foregroundColor: Colors.blueAccent),
+        ),
+      ],
+    );
+  }
+
+  void _showAddPlatformModal(BuildContext context, List<PlatformType> platforms) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.grey.shade900,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Add to this post', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            ...platforms.map((p) => ListTile(
+              leading: Icon(_getPlatformIcon(p), color: Colors.blueAccent),
+              title: Text(p.name.toUpperCase(), style: const TextStyle(color: Colors.white)),
+              onTap: () {
+                context.read<PostProvider>().toggleTargetPlatform(p);
+                Navigator.pop(ctx);
+              },
+            )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _generateCaption(BuildContext context, PlatformType p, PlatformContent c, dynamic post) async {
+    setState(() => _isGeneratingCaption = true);
+    final text = await AIService.generateCaption(post.title, c.description);
+    if (context.mounted) context.read<PostProvider>().updateContent(p, c.copyWith(description: text));
+    setState(() => _isGeneratingCaption = false);
+  }
+
+  Future<void> _generateTags(BuildContext context, PlatformType p, PlatformContent c, dynamic post) async {
+    setState(() => _isGeneratingTags = true);
+    final tags = await AIService.generateHashtags(post.title, c.description);
+    if (context.mounted) context.read<PostProvider>().updateContent(p, c.copyWith(hashtags: tags));
+    setState(() => _isGeneratingTags = false);
+  }
+
   IconData _getPlatformIcon(PlatformType platform) {
     switch (platform) {
-      case PlatformType.youtube:
-        return Icons.play_arrow;
-      case PlatformType.instagram:
-        return Icons.camera_alt;
-      case PlatformType.facebook:
-        return Icons.facebook;
-      case PlatformType.linkedin:
-        return Icons.work;
+      case PlatformType.youtube: return Icons.play_arrow;
+      case PlatformType.instagram: return Icons.camera_alt;
+      case PlatformType.linkedin: return Icons.work;
+      case PlatformType.facebook: return Icons.facebook;
     }
   }
 }

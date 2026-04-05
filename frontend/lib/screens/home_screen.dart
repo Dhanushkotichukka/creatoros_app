@@ -8,6 +8,7 @@ import '../widgets/ai_update_ticker.dart';
 import '../widgets/content_section.dart';
 import '../widgets/creator_score_widget.dart';
 import '../widgets/connect_platforms_view.dart';
+import '../widgets/profile_panel.dart';
 import '../services/api_service.dart';
 
 
@@ -99,9 +100,14 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
 
-    List<Widget> appBarActions = [
+    List<Widget> appBarActions = [];
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final uploadBg = isDark ? const Color(0xFF6C63FF) : const Color(0xFFFF6A3D);
+
+    appBarActions.add(
       Padding(
-        padding: const EdgeInsets.only(right: 8.0, top: 8.0, bottom: 8.0),
+        padding: const EdgeInsets.only(right: 4.0, top: 8.0, bottom: 8.0),
         child: ElevatedButton.icon(
           onPressed: () {
             Navigator.push(
@@ -112,13 +118,17 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: const Icon(Icons.upload, size: 18),
           label: const Text('Upload'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blueAccent,
+            backgroundColor: uploadBg,
             foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            elevation: 0,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           ),
         ),
       ),
-      IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
-    ];
+    );
+    appBarActions.add(IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}));
+
 
     for (var p in platforms) {
       if (p['isConnected'] == true) {
@@ -143,10 +153,15 @@ class _HomeScreenState extends State<HomeScreen> {
       )
     );
 
-    appBarActions.add(const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 10),
-      child: CircleAvatar(child: Icon(Icons.person)),
-    ));
+    appBarActions.add(
+      Padding(
+        padding: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+        child: GestureDetector(
+          onTap: () => showProfilePanel(context),
+          child: _ProfileAvatar(),
+        ),
+      ),
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -174,27 +189,30 @@ class _HomeScreenState extends State<HomeScreen> {
             AIUpdateTicker(updates: insights),
             const SizedBox(height: 20),
             ...() {
-                final list = (data['topContent'] as List?);
-                final ytList = list?.where((c) => c['platform'] == 'YouTube').toList();
-                final igList = list?.where((c) => c['platform'] == 'Instagram').toList();
+                final list = (data['topContent'] as List? ?? []);
+                final connectedPlatforms = platforms.where((p) => p['isConnected'] == true).toList();
 
-                return [
-                  if (ytList != null && ytList.isNotEmpty) ...[
-                    const SectionHeader(title: 'Latest YouTube Content'),
-                    ContentSection(platform: 'YouTube', contentList: ytList),
-                    const SizedBox(height: 20),
-                  ],
-                  if (igList != null && igList.isNotEmpty) ...[
-                    const SectionHeader(title: 'Latest Instagram Content'),
-                    ContentSection(platform: 'Instagram', contentList: igList),
-                    const SizedBox(height: 20),
-                  ],
-                  if ((ytList == null || ytList.isEmpty) && (igList == null || igList.isEmpty)) ...[
+                if (connectedPlatforms.isEmpty) {
+                  return [
                     const SectionHeader(title: 'Latest Content'),
-                    ContentSection(platform: 'YouTube'),
+                    const ContentSection(platform: 'YouTube'),
                     const SizedBox(height: 20),
-                  ],
-                ];
+                  ];
+                }
+
+                return connectedPlatforms.map((p) {
+                  final pName = p['name'];
+                  final pContent = list.where((c) => c['platform'] == pName).toList();
+                  
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SectionHeader(title: 'Latest $pName Content'),
+                      ContentSection(platform: pName, contentList: pContent),
+                      const SizedBox(height: 20),
+                    ],
+                  );
+                }).toList();
               }(),
             const SectionHeader(title: 'Scheduled Content 🤖'),
             const Placeholder(fallbackHeight: 100), // To be implemented
@@ -215,9 +233,85 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: isDark ? Colors.white : const Color(0xFF1E1E1E),
+        ),
+      ),
+    );
+  }
+}
+
+/// Gradient pulsing avatar shown in the home AppBar.
+class _ProfileAvatar extends StatefulWidget {
+  @override
+  State<_ProfileAvatar> createState() => _ProfileAvatarState();
+}
+
+class _ProfileAvatarState extends State<_ProfileAvatar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+    _pulse = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _pulse,
+      builder: (_, __) {
+        return Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF6C63FF), Color(0xFFFF6A3D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6C63FF).withOpacity(_pulse.value * 0.5),
+                blurRadius: 12 * _pulse.value,
+                spreadRadius: 2 * _pulse.value,
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Text(
+              'V',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

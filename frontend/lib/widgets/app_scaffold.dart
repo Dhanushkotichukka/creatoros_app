@@ -74,27 +74,57 @@ class _MobileLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final activeColor = theme.colorScheme.secondary; // orange in dark, primary in light
+    final inactiveColor = isDark ? const Color(0xFFA0A0B0) : const Color(0xFF6B6B6B);
+    final navBg = isDark ? const Color(0xFF1A1A2E) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : const Color(0xFFE5E5E5);
+
     return Scaffold(
       body: child,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.white12, width: 1)),
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: borderColor, width: 1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+              blurRadius: 16,
+              offset: const Offset(0, -4),
+            ),
+          ],
         ),
         child: BottomNavigationBar(
           currentIndex: currentIndex,
           onTap: onTap,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          selectedItemColor: Colors.deepPurpleAccent,
-          unselectedItemColor: Colors.grey,
+          backgroundColor: navBg,
+          selectedItemColor: activeColor,
+          unselectedItemColor: inactiveColor,
           showSelectedLabels: true,
           showUnselectedLabels: false,
           items: AppScaffold._navItems.map((item) {
             if (item.isAction) {
               return BottomNavigationBarItem(
-                icon: const CircleAvatar(
-                  backgroundColor: Colors.deepPurpleAccent,
-                  child: Icon(Icons.add, color: Colors.white),
+                icon: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFFFF6A3D)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF6C63FF).withOpacity(0.4),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.add, color: Colors.white, size: 22),
                 ),
                 label: '',
               );
@@ -124,23 +154,40 @@ class _TabletLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final activeColor = theme.colorScheme.secondary;
+    final navBg = isDark ? const Color(0xFF1A1A2E) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : const Color(0xFFE5E5E5);
+
     return Scaffold(
       body: Row(
         children: [
           NavigationRail(
             selectedIndex: currentIndex,
             onDestinationSelected: onTap,
-            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-            selectedIconTheme: const IconThemeData(color: Colors.deepPurpleAccent),
-            unselectedIconTheme: const IconThemeData(color: Colors.grey),
+            backgroundColor: navBg,
+            selectedIconTheme: IconThemeData(color: activeColor),
+            unselectedIconTheme: IconThemeData(
+              color: isDark ? const Color(0xFFA0A0B0) : const Color(0xFF6B6B6B),
+            ),
             destinations: AppScaffold._navItems.map((item) {
               if (item.isAction) {
-                return const NavigationRailDestination(
-                  icon: CircleAvatar(
-                    backgroundColor: Colors.deepPurpleAccent,
-                    child: Icon(Icons.add, color: Colors.white),
+                return NavigationRailDestination(
+                  icon: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF6C63FF), Color(0xFFFF6A3D)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: const Icon(Icons.add, color: Colors.white, size: 20),
                   ),
-                  label: Text(''),
+                  label: const Text(''),
                 );
               }
               return NavigationRailDestination(
@@ -150,7 +197,7 @@ class _TabletLayout extends StatelessWidget {
               );
             }).toList(),
           ),
-          const VerticalDivider(width: 1, color: Colors.white12),
+          VerticalDivider(width: 1, color: borderColor),
           Expanded(child: child),
         ],
       ),
@@ -171,12 +218,21 @@ class _WebLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final activeColor = theme.colorScheme.secondary;
+    final sidebarBg = isDark ? const Color(0xFF1A1A2E) : Colors.white;
+    final borderColor = isDark ? Colors.white12 : const Color(0xFFE5E5E5);
+    final textActive = isDark ? Colors.white : const Color(0xFF1E1E1E);
+    final textInactive = isDark ? const Color(0xFFA0A0B0) : const Color(0xFF6B6B6B);
+    final menuLabel = isDark ? const Color(0xFFA0A0B0) : const Color(0xFFAAAAAA);
+
     return Scaffold(
       body: Row(
         children: [
           Container(
             width: 250,
-            color: Theme.of(context).scaffoldBackgroundColor,
+            color: sidebarBg,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -189,15 +245,23 @@ class _WebLayout extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: Colors.deepPurpleAccent,
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF6C63FF), Color(0xFFFF6A3D)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Icon(Icons.bolt, color: Colors.white),
                       ),
                       const SizedBox(width: 16),
-                      const Text(
+                      Text(
                         'CreatorOS',
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: textActive,
+                        ),
                       ),
                     ],
                   ),
@@ -207,27 +271,54 @@ class _WebLayout extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text(
                     'MAIN MENU',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600], letterSpacing: 1.2),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: menuLabel,
+                      letterSpacing: 1.2,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 ...List.generate(AppScaffold._navItems.length, (i) {
                   final item = AppScaffold._navItems[i];
                   final isSelected = i == currentIndex;
-                  
+
                   if (item.isAction) {
                     return Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.deepPurpleAccent,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF6C63FF), Color(0xFFFF6A3D)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF6C63FF).withOpacity(0.35),
+                              blurRadius: 16,
+                              spreadRadius: 0,
+                            ),
+                          ],
                         ),
-                        icon: const Icon(Icons.add),
-                        label: const Text('New Project', style: TextStyle(fontWeight: FontWeight.bold)),
-                        onPressed: () => onTap(i),
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(double.infinity, 50),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          icon: const Icon(Icons.add),
+                          label: const Text(
+                            'New Project',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          onPressed: () => onTap(i),
+                        ),
                       ),
                     );
                   }
@@ -237,18 +328,20 @@ class _WebLayout extends StatelessWidget {
                     child: ListTile(
                       leading: Icon(
                         isSelected ? item.activeIcon : item.icon,
-                        color: isSelected ? Colors.deepPurpleAccent : Colors.grey,
+                        color: isSelected ? activeColor : textInactive,
                       ),
                       title: Text(
                         item.label,
                         style: TextStyle(
-                          color: isSelected ? Colors.deepPurpleAccent : Colors.white70,
+                          color: isSelected ? activeColor : textInactive,
                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                         ),
                       ),
                       selected: isSelected,
-                      selectedTileColor: Colors.deepPurpleAccent.withOpacity(0.1),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      selectedTileColor: activeColor.withOpacity(0.1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       onTap: () => onTap(i),
                     ),
                   );
@@ -256,7 +349,7 @@ class _WebLayout extends StatelessWidget {
               ],
             ),
           ),
-          const VerticalDivider(width: 1, color: Colors.white12),
+          VerticalDivider(width: 1, color: borderColor),
           Expanded(child: child),
         ],
       ),

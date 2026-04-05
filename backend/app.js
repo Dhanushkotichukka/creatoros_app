@@ -56,6 +56,7 @@ console.log('Setting up routes...');
 app.use('/auth/youtube', youtubeRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/auth/meta', metaRoutes);
+app.use('/auth/linkedin', linkedinRoutes); 
 app.use('/api/publish', publishRoutes);
 app.use('/auth/instagram', metaRoutes);
 app.use('/api/analytics', analyticsRoutes);

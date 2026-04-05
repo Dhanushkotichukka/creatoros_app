@@ -13,7 +13,10 @@ function saveSessions() {
         igUsername: global.igUsername,
         igName: global.igName,
         igAvatar: global.igAvatar,
-        linkedinToken: global.linkedinToken
+        linkedinToken: global.linkedinToken,
+        linkedinUserUrn: global.linkedinUserUrn,
+        linkedinName: global.linkedinName,
+        linkedinAvatar: global.linkedinAvatar
     };
     fs.writeFileSync(sessionPath, JSON.stringify(data, null, 2));
     console.log('[SESSION] Saved to disk.');
@@ -32,7 +35,10 @@ function loadSessions() {
             global.igName = data.igName;
             global.igAvatar = data.igAvatar;
             global.linkedinToken = data.linkedinToken;
-            console.log(`[SESSION] Loaded from disk. IG ID: ${global.igAccountId || 'NONE'}, Meta Token: ${global.metaToken ? 'EXISTS' : 'NONE'}`);
+            global.linkedinUserUrn = data.linkedinUserUrn;
+            global.linkedinName = data.linkedinName;
+            global.linkedinAvatar = data.linkedinAvatar;
+            console.log(`[SESSION] Loaded from disk. IG ID: ${global.igAccountId || 'NONE'}, LinkedIn: ${global.linkedinUserUrn || 'NONE'}`);
         } catch (e) {
             console.error('[SESSION] Load failed:', e.message);
         }

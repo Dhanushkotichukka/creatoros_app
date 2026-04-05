@@ -1,5 +1,6 @@
 const youtubeController = require('./youtubeController');
 const metaController = require('./metaController');
+const linkedinController = require('./linkedinController');
 const path = require('path');
 const fs = require('fs');
 const axios = require('axios');
@@ -9,100 +10,191 @@ exports.publishToAll = async (req, res) => {
     const platforms = JSON.parse(platformData || '{}');
     const urls = mediaUrls || [];
 
-    if (urls.length === 0) {
+    const hasYoutube   = Object.keys(platforms).some(k => k.toLowerCase() === 'youtube');
+    const hasInstagram = Object.keys(platforms).some(k => k.toLowerCase() === 'instagram');
+    const hasLinkedin  = Object.keys(platforms).some(k => k.toLowerCase() === 'linkedin');
+
+    // Only require media if at least one non-text-only platform is selected
+    const needsMedia = hasYoutube || hasInstagram || (hasLinkedin && urls.length > 0);
+    if (needsMedia && urls.length === 0) {
         return res.status(400).json({ error: 'No media URLs provided from S3' });
     }
 
     const results = [];
-    const mainMediaUrl = urls[0];
-    
-    // We'll construct a temporary local file path for platforms like YouTube that require a local stream
-    let localTempPath = null;
+    // Clean URLs (strip signatures) for display/DB only
+    const publicMediaUrls = urls.map(u => u.split('?')[0]);
+    console.log(`[PUBLISH] Received ${urls.length} media item(s).`);
+
+    let localTempPaths = [];
+    let instagramUrls = urls; // Default: use original signed URLs for Instagram
     
     try {
-        // Only download if YouTube is selected, since Instagram natively accepts public URLs
-        // Note: Checking dictionary with lower case since frontend json passes it as 'youtube' or 'instagram' due to .name on enum 
-        const hasYoutube = Object.keys(platforms).some(k => k.toLowerCase() === 'youtube');
+        const hasYoutube   = Object.keys(platforms).some(k => k.toLowerCase() === 'youtube');
         const hasInstagram = Object.keys(platforms).some(k => k.toLowerCase() === 'instagram');
+        const hasLinkedin  = Object.keys(platforms).some(k => k.toLowerCase() === 'linkedin');
 
-        if (hasYoutube) {
-            localTempPath = path.join(__dirname, '..', 'uploads', `temp-media-${Date.now()}.mp4`);
+        // Download files locally when any platform needs it
+        if (urls.length > 0 && (hasYoutube || hasLinkedin || hasInstagram)) {
+            console.log(`[PUBLISH] Downloading ${urls.length} item(s) from S3...`);
             
-            // Ensure uploads directory exists properly (fs may be finicky occasionally on windows)
-            const uploadDir = path.dirname(localTempPath);
-            if (!fs.existsSync(uploadDir)) {
-                fs.mkdirSync(uploadDir, { recursive: true });
+            for (let i = 0; i < urls.length; i++) {
+                const dlUrl = urls[i].replace('localhost', '127.0.0.1');
+                try {
+                    let ext = '';
+                    const urlPathname = new URL(dlUrl).pathname;
+                    const urlExt = path.extname(urlPathname).toLowerCase();
+                    const validExts = ['.mp4', '.mov', '.avi', '.jpg', '.jpeg', '.png', '.gif', '.webp'];
+                    if (validExts.includes(urlExt)) ext = urlExt === '.jpeg' ? '.jpg' : urlExt;
+
+                    const response = await axios({ url: dlUrl, method: 'GET', responseType: 'stream', timeout: 15000 });
+                    if (!ext) {
+                        const ct = response.headers['content-type'] || '';
+                        if (ct.includes('image/png'))  ext = '.png';
+                        else if (ct.includes('image/jpeg')) ext = '.jpg';
+                        else if (ct.includes('image/webp')) ext = '.webp';
+                        else if (ct.includes('video/mp4'))  ext = '.mp4';
+                        else ext = '.bin';
+                    }
+
+                    const localPath = path.join(__dirname, '..', 'uploads', `temp-${Date.now()}-${i}${ext}`);
+                    if (!fs.existsSync(path.dirname(localPath))) fs.mkdirSync(path.dirname(localPath), { recursive: true });
+
+                    const { pipeline } = require('stream/promises');
+                    await pipeline(response.data, fs.createWriteStream(localPath));
+                    localTempPaths.push(localPath);
+                } catch (dlErr) {
+                    console.error(`[PUBLISH] Download failed for item ${i}:`, dlErr.message);
+                }
             }
 
-            console.log('Downloading media from S3 for local publishing buffer...');
-            
-            // In dev environment when calling localhost dynamically, we map to 127.0.0.1 
-            // In prod this will just be your S3 URL directly.
-            const dlUrl = mainMediaUrl.replace('localhost', '127.0.0.1');
+            // ── Generate long-lived presigned URLs for Instagram ──────────────
+            // Instagram's scraper fetches image_url directly. Short-lived or
+            // complex signed S3 URLs fail. A 7-day presigned GET URL works
+            // reliably since it's clean HTTPS with no ACL changes needed.
+            if (hasInstagram && localTempPaths.length > 0) {
+                const isAWSConfigured = process.env.AWS_ACCESS_KEY_ID &&
+                    process.env.AWS_ACCESS_KEY_ID !== 'your_aws_access_key_here';
 
-            try {
-                const response = await axios({
-                    url: dlUrl,
-                    method: 'GET',
-                    responseType: 'stream',
-                    timeout: 10000 // 10s timeout
-                });
+                if (isAWSConfigured) {
+                    const { GetObjectCommand } = require('@aws-sdk/client-s3');
+                    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+                    const { S3Client: S3ForIG } = require('@aws-sdk/client-s3');
 
-                const { pipeline } = require('stream/promises');
-                await pipeline(response.data, fs.createWriteStream(localTempPath));
-                console.log('Finished downloading to temp buffer.');
-            } catch (dlErr) {
-                console.error('[PUBLISH] S3 Download Failed:', dlErr.message);
-                // If it's a "Bucket not found" or "404", we should return a meaningful error
-                throw new Error(`Media stored in S3 is not reachable: ${dlErr.message}`);
+                    const s3ig = new S3ForIG({
+                        region: process.env.AWS_REGION || 'us-east-1',
+                        credentials: {
+                            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+                            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+                        },
+                    });
+                    const BUCKET = process.env.AWS_S3_BUCKET_TEMP || 'creator-os-1';
+                    const freshUrls = [];
+
+                    for (let idx = 0; idx < localTempPaths.length; idx++) {
+                        try {
+                            // Extract the S3 key from the original URL
+                            const originalUrl = urls[idx] || urls[0];
+                            const urlObj = new URL(originalUrl);
+                            // Key is the pathname without leading /
+                            const key = decodeURIComponent(urlObj.pathname.replace(/^\//, ''));
+
+                            const cmd = new GetObjectCommand({ Bucket: BUCKET, Key: key });
+                            // 7 days = 604800 seconds — long enough for Instagram to crawl
+                            const longUrl = await getSignedUrl(s3ig, cmd, { expiresIn: 604800 });
+                            freshUrls.push(longUrl);
+                            console.log(`[PUBLISH] ✅ 7-day presigned URL generated for Instagram (item ${idx})`);
+                        } catch (signErr) {
+                            console.warn(`[PUBLISH] ⚠️  Presign failed for item ${idx}, using original:`, signErr.message);
+                            freshUrls.push(urls[idx] || urls[0]);
+                        }
+                    }
+                    instagramUrls = freshUrls;
+                } else {
+                    console.warn('[PUBLISH] ⚠️  AWS not configured — passing original URLs to Instagram.');
+                    instagramUrls = urls;
+                }
             }
+
+        } else if (hasLinkedin && urls.length === 0) {
+            console.log(`[PUBLISH] No media — LinkedIn text-only post.`);
         }
 
-        // YouTube Publish
+        // Determine if there's any video in the set
+        const hasVideo = localTempPaths.some(p => ['.mp4', '.mov', '.avi', '.webm'].some(e => p.endsWith(e))) ||
+                         publicMediaUrls.some(u => ['.mp4', '.mov', '.avi', '.webm'].some(e => u.toLowerCase().endsWith(e)));
+
+        // ── YouTube Publish ──
         if (hasYoutube) {
-            console.log('[PUBLISH] Starting YouTube publishing...');
             const ytKey = Object.keys(platforms).find(k => k.toLowerCase() === 'youtube');
-            try {
-                const ytRes = await youtubeController.publishToYouTube(localTempPath, platforms[ytKey]);
-                results.push(ytRes || { platform: 'YouTube', success: true });
-            } catch (err) {
-                console.error('[PUBLISH] YouTube Error:', err.message);
-                results.push({ platform: 'YouTube', success: false, error: err.message });
+            if (!hasVideo) {
+                results.push({ platform: 'YouTube', success: false, error: 'YouTube only supports video uploads.' });
+            } else {
+                try {
+                    const videoPath = localTempPaths.find(p => ['.mp4', '.mov', '.avi', '.webm'].some(e => p.endsWith(e)));
+                    const ytRes = await youtubeController.publishToYouTube(videoPath, platforms[ytKey]);
+                    results.push(ytRes || { platform: 'YouTube', success: true });
+                } catch (err) {
+                    results.push({ platform: 'YouTube', success: false, error: err.message });
+                }
             }
         }
 
-        // Instagram Publish
+        // ── Instagram Publish ──
+        // Uses clean public URLs (re-uploaded) so Meta's scraper can fetch them
         if (hasInstagram) {
             const igKey = Object.keys(platforms).find(k => k.toLowerCase() === 'instagram');
             try {
-                // Pass the native S3 public URL directly to Meta
-                const igRes = await metaController.publishToInstagram(mainMediaUrl, platforms[igKey]);
+                console.log(`[PUBLISH] Instagram using URLs:`, instagramUrls.map(u => u.substring(0, 80)));
+                const igRes = await metaController.publishToInstagram(instagramUrls, platforms[igKey]);
                 results.push(igRes);
             } catch (err) {
                 results.push({ platform: 'Instagram', success: false, error: err.message });
             }
         }
 
-        const finalResults = {
-            timestamp: new Date().toISOString(),
-            mediaUrl: mainMediaUrl,
-            platforms: platforms,
-            results: results
-        };
-        fs.writeFileSync(path.join(__dirname, '../utils/publish_debug.json'), JSON.stringify(finalResults, null, 2));
+        // ── LinkedIn Publish (Text / Single Image / Video / Carousel) ──
+        if (hasLinkedin) {
+            const liKey = Object.keys(platforms).find(k => k.toLowerCase() === 'linkedin');
+            try {
+                // Pass localTempPaths (may be empty for text-only)
+                // Pass original signed S3 URLs as 3rd arg for video link-card fallback
+                const liRes = await linkedinController.publishToLinkedIn(localTempPaths, platforms[liKey], urls);
+                results.push(liRes);
+            } catch (err) {
+                results.push({ platform: 'LinkedIn', success: false, error: err.message });
+            }
+        }
 
-        res.json({
-            message: 'Publishing process completed',
-            results
-        });
+        // Save debug logs
+        fs.writeFileSync(path.join(__dirname, '../utils/publish_debug.json'), JSON.stringify({ timestamp: new Date().toISOString(), results }, null, 2));
+
+        // Save to Content DB
+        try {
+            const { Content } = require('../models');
+            if (results.some(r => r.success)) {
+                await Content.create({
+                    title: title || 'CreatorOS Multi-Post',
+                    description: 'Published via multi-post hub',
+                    contentType: hasVideo ? 'video' : (urls.length > 1 ? 'carousel' : 'image'),
+                    platforms,
+                    status: 'published',
+                    mediaUrl: publicMediaUrls[0],
+                    thumbnailUrl: hasVideo ? 'https://via.placeholder.com/600x300?text=Video+Thumbnail' : publicMediaUrls[0],
+                    publishedAt: new Date()
+                });
+            }
+        } catch (dbErr) { console.error('[PUBLISH] DB Save Error:', dbErr.message); }
+
+        res.json({ message: 'Publishing process completed', results });
 
     } catch (error) {
-        console.error('Unified Publish error:', error);
+        console.error('[PUBLISH] Global error:', error.message);
         res.status(500).json({ error: 'An unexpected error occurred during publishing.' });
     } finally {
-        // Clean up temporary local files
-        if (localTempPath && fs.existsSync(localTempPath)) {
-            fs.unlinkSync(localTempPath);
+        for (const p of localTempPaths) {
+            if (fs.existsSync(p)) fs.unlinkSync(p);
         }
     }
 };
+
+

@@ -71,7 +71,7 @@ class ContentSection extends StatelessWidget {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: platform == 'YouTube' ? Colors.red : Colors.pinkAccent,
+                              color: platform == 'YouTube' ? Colors.red : (platform == 'LinkedIn' ? Colors.blue : Colors.pinkAccent),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -82,7 +82,7 @@ class ContentSection extends StatelessWidget {
                         ),
                         Center(
                           child: Icon(
-                            platform == 'YouTube' ? Icons.play_circle_fill : Icons.play_arrow_rounded,
+                            platform == 'YouTube' ? Icons.play_circle_fill : (platform == 'LinkedIn' ? Icons.article : Icons.play_arrow_rounded),
                             color: Colors.white70,
                             size: 48,
                           ),
@@ -93,12 +93,12 @@ class ContentSection extends StatelessWidget {
                       color: Colors.grey[800],
                       child: Center(
                         child: Icon(
-                          platform == 'YouTube' ? Icons.play_circle_outline : Icons.camera_alt_outlined,
+                          platform == 'YouTube' ? Icons.play_circle_outline : (platform == 'LinkedIn' ? Icons.business : Icons.camera_alt_outlined),
                           size: 50,
                           color: Colors.grey,
-                        ),
-                      ),
-                    ),
+                         ),
+                       ),
+                     ),
             ),
           ),
 

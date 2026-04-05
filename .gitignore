@@ -25,6 +25,9 @@ frontend/.flutter-plugins-dependencies
 
 # Logs
 **/*.log
+**/*_log.txt
+backend/crash_log.txt
+backend/utils/publish_status.txt
 backend/backend_log*.txt
 frontend/analyze_res.txt
 frontend/out.txt

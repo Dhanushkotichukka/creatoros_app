@@ -34,20 +34,34 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         title: const Text('Analytics', style: TextStyle(fontWeight: FontWeight.bold)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFilterChip('Overview'),
-                _buildFilterChip('YouTube'),
-                _buildFilterChip('Instagram'),
-                IconButton(icon: const Icon(Icons.add), onPressed: () {
-                    setState(() { _showConnectView = true; });
-                }),
-                const SizedBox(width: 8),
-                _buildFilterChip('28 Days', icon: Icons.calendar_today),
-              ],
-            ),
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: ApiService.getAnalyticsOverview(), // Use a fresh fetch for tabs
+            builder: (context, snapshot) {
+              final data = snapshot.data ?? {};
+              final platforms = (data['platforms'] as List? ?? []);
+              final connectedNames = platforms
+                  .where((p) => p['isConnected'] == true)
+                  .map((p) => p['name'].toString())
+                  .toList();
+
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildFilterChip('Overview'),
+                    ...connectedNames.map((name) => _buildFilterChip(name)),
+                    IconButton(
+                      icon: const Icon(Icons.add_link, color: Colors.deepPurpleAccent), 
+                      onPressed: () {
+                        setState(() { _showConnectView = true; });
+                      }
+                    ),
+                    const SizedBox(width: 8),
+                    _buildFilterChip('28 Days', icon: Icons.calendar_today),
+                  ],
+                ),
+              );
+            }
           ),
         ),
       ),

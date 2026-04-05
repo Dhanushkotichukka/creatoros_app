@@ -99,16 +99,26 @@ const listStorageObjects = async () => {
                 const command = new ListObjectsV2Command({ Bucket: bucket.name });
                 const res = await s3Client.send(command);
                 if (res.Contents) {
-                    s3Items.push(...res.Contents.map(item => ({
-                        name: item.Key,
-                        size: item.Size,
-                        lastModified: item.LastModified,
-                        url: `https://${bucket.name}.s3.amazonaws.com/${item.Key}`,
-                        storage: bucket.label
-                    })));
+                    for (const item of res.Contents) {
+                        try {
+                            const url = await getPresignedUrl(bucket.name, item.Key, 604800); // 7 days
+                            s3Items.push({
+                                name: item.Key,
+                                size: item.Size,
+                                lastModified: item.LastModified,
+                                url: url,
+                                storage: bucket.label
+                            });
+                        } catch (urlErr) {
+                            console.warn(`Failed to sign URL for ${item.Key}:`, urlErr.message);
+                        }
+                    }
                 }
             } catch (err) {
-                console.warn(`S3 List failed for bucket ${bucket.name}:`, err.message);
+                // Silently skip if bucket doesn't exist
+                if (err.name !== 'NoSuchBucket') {
+                    console.warn(`S3 List failed for bucket ${bucket.name}:`, err.message);
+                }
             }
         }
     }

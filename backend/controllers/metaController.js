@@ -223,6 +223,7 @@ exports.getInstagramAnalytics = async (req, res) => {
             params: {
                 metric: 'impressions,reach,profile_views',
                 period: 'day',
+                metric_type: 'total_value',
                 access_token: accessToken
             }
         });
@@ -290,38 +291,45 @@ exports.getStatus = async (req, res) => {
 
 exports.resolveIGAccount = resolveIGAccount;
 
-const pollStatus = async (igAccountId, creationId, accessToken) => {
+const pollStatus = async (igAccountId, creationId, accessToken, isVideo = false) => {
     let attempts = 0;
     const maxAttempts = 30; // 5 minutes max
     const statusLogPath = path.join(__dirname, '../utils/publish_status.txt');
-    fs.writeFileSync(statusLogPath, `[INSTAGRAM] Started polling for container: ${creationId}\n`);
+    fs.writeFileSync(statusLogPath, `[INSTAGRAM] Started polling for container: ${creationId} (isVideo: ${isVideo})\n`);
 
     while (attempts < maxAttempts) {
         try {
+            // Fields depends on whether it is a video (Reel/Video) or an Image/Carousel
+            const fields = isVideo ? 'status_code,video_status' : 'status_code';
             const response = await axios.get(`https://graph.facebook.com/v19.0/${creationId}`, {
-                params: {
-                    fields: 'status_code,status,video_status',
-                    access_token: accessToken
-                }
+                params: { fields, access_token: accessToken }
             });
             const status = response.data.status_code;
             const logMsg = `[${new Date().toLocaleTimeString()}] Attempt ${attempts + 1}: ${status}\n`;
             fs.appendFileSync(statusLogPath, logMsg);
             
-            console.log(`[INSTAGRAM] Container ${creationId} full status:`, JSON.stringify(response.data, null, 2));
+            console.log(`[INSTAGRAM] Container ${creationId} status:`, status);
             if (status === 'FINISHED') {
                 fs.appendFileSync(statusLogPath, `[INSTAGRAM] SUCCESS: Ready to publish!\n`);
                 return true;
             }
             if (status === 'ERROR') {
-                const msg = response.data.video_status?.error_description || 'Meta processing failed';
+                const msg = response.data.video_status?.error_description || response.data.status || 'Meta processing failed';
                 throw new Error(`Instagram Processing Error: ${msg}`);
             }
         } catch (e) {
-            console.error(`[INSTAGRAM] Polling error during attempt ${attempts + 1}:`, e.message);
-            fs.appendFileSync(statusLogPath, `[${new Date().toLocaleTimeString()}] Polling Error: ${e.message}\n`);
-            // Only throw if it's a definitive "ERROR" from Meta, otherwise retry
-            if (e.message && e.message.includes('Instagram Processing Error')) throw e;
+            // Log the error but don't crash unless it's a definitive Meta ERROR
+            const statusMsg = e.response?.data?.error?.message || e.message;
+            console.warn(`[INSTAGRAM] Polling warning (attempt ${attempts + 1}):`, statusMsg);
+            
+            // If we get a 400 "Field is unknown", it usually means it is an image/carousel ready for publication
+            if (e.response?.status === 400 && !isVideo) {
+                console.log(`[INSTAGRAM] Container 400'd but not video — likely READY. Proceeding...`);
+                return true;
+            }
+            
+            fs.appendFileSync(statusLogPath, `[${new Date().toLocaleTimeString()}] Polling Warning: ${statusMsg}\n`);
+            if (statusMsg.includes('Instagram Processing Error')) throw e;
         }
         await new Promise(resolve => setTimeout(resolve, 10000)); // Wait 10s
         attempts++;
@@ -329,79 +337,145 @@ const pollStatus = async (igAccountId, creationId, accessToken) => {
     throw new Error('Video processing timed out on Meta side');
 };
 
-exports.publishToInstagram = async (mediaUrl, metadata) => {
+exports.publishToInstagram = async (mediaUrls, metadata) => {
     if (!global.metaToken || !global.igAccountId) throw new Error('Instagram not connected');
     
-    // Warn if local URL is used
-    if (mediaUrl.includes('localhost') || mediaUrl.includes('127.0.0.1')) {
-        console.warn('[INSTAGRAM] WARNING: Using a local media URL. Meta servers will NOT be able to download this file!');
+    // Convert to array if it is a single string (backwards compatibility)
+    const urls = Array.isArray(mediaUrls) ? mediaUrls : [mediaUrls];
+    if (urls.length === 0) throw new Error('No media URLs provided');
+
+    const isVideo = (url) => {
+        const path = url.toLowerCase().split('?')[0];
+        const ext = path.split('.').pop();
+        return ['mp4', 'mov', 'avi', 'webm', 'mkv', 'wmv'].includes(ext) || path.includes('.mp4?') || path.includes('.mov?');
     }
 
-    // Deep Detection: S3 presigned URLs have params after the extension, so endsWith fails.
-    // We check if the path part of the URL contains .mp4 or .mov
-    const isVideo = mediaUrl.toLowerCase().split('?')[0].endsWith('.mp4') || 
-                    mediaUrl.toLowerCase().split('?')[0].endsWith('.mov') ||
-                    mediaUrl.toLowerCase().includes('.mp4?') ||
-                    mediaUrl.toLowerCase().includes('.mov?');
-    
-    console.log(`[INSTAGRAM] Detected media format for: ${mediaUrl.split('?')[0]} -> ${isVideo ? 'VIDEO' : 'IMAGE'}`);
-    console.log(`[INSTAGRAM] Publishing ${isVideo ? 'VIDEO' : 'IMAGE'} to Instagram...`);
+    const postType = (metadata.contentType || 'Post').toUpperCase(); // POST, STORY, REEL
+    console.log(`[INSTAGRAM] Detected media as ${urls.map(u => isVideo(u) ? 'VIDEO' : 'IMAGE').join(', ')}`);
+    console.log(`[INSTAGRAM] Publishing ${urls.length} item(s) to Instagram as ${postType}...`);
 
     try {
-        // Step 1: Create Media Container
-        // PREPARE UNIFIED CAPTION
+        const accessToken = global.metaToken;
+        const igId = global.igAccountId;
+
+        // PREPARE CAPTION (Stories don't support captions via API)
         const titlePart = metadata.title ? `${metadata.title.toUpperCase()}\n\n` : '';
         const descPart = metadata.description ? `${metadata.description}\n\n` : '';
         const hashtagsPart = (metadata.hashtags && metadata.hashtags.length > 0) 
             ? metadata.hashtags.map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(' ') 
             : '';
-        
-        const unifiedCaption = `${titlePart}${descPart}${hashtagsPart}`.trim();
+        const unifiedCaption = (postType === 'STORY') ? '' : `${titlePart}${descPart}${hashtagsPart}`.trim();
 
-        const containerParams = {
+        // ────── CASE 1: STORY (Single Media Only) ──────
+        if (postType === 'STORY') {
+            const url = urls[0];
+            const isVid = isVideo(url);
+            const params = {
+                media_type: 'STORIES',
+                access_token: accessToken
+            };
+            if (isVid) params.video_url = url; else params.image_url = url;
+
+            const res = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media`, null, { params });
+            const creationId = res.data.id;
+            
+            // ALWAYS poll for stories (video or image) to prevent "not ready" errors
+            await pollStatus(igId, creationId, accessToken);
+
+            const publishRes = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media_publish`, null, {
+                params: { creation_id: creationId, access_token: accessToken }
+            });
+            return { success: true, platform: 'Instagram', id: publishRes.data.id, postType: 'STORY' };
+        }
+
+        // ────── CASE 2: CAROUSEL (Multiple Media) ──────
+        if (urls.length > 1) {
+            console.log(`[INSTAGRAM] Creating Carousel with ${urls.length} items...`);
+            const itemContainerIds = [];
+
+            for (const url of urls) {
+                const isVid = isVideo(url);
+                const itemParams = {
+                    is_carousel_item: true,
+                    access_token: accessToken
+                };
+                if (isVid) {
+                    itemParams.video_url = url;
+                    itemParams.media_type = 'VIDEO';
+                } else {
+                    itemParams.image_url = url;
+                }
+
+                const itemRes = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media`, null, { params: itemParams });
+                itemContainerIds.push(itemRes.data.id);
+            }
+
+            // Wait for items to be processed (only for videos)
+            for (let i = 0; i < itemContainerIds.length; i++) {
+                const cId = itemContainerIds[i];
+                const isVid = isVideo(urls[i]);
+                if (isVid) {
+                    console.log(`[INSTAGRAM] Verifying carousel video item: ${cId}`);
+                    await pollStatus(igId, cId, accessToken, true);
+                }
+            }
+
+            // Create Carousel Container
+            const carouselRes = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media`, null, {
+                params: {
+                    media_type: 'CAROUSEL',
+                    children: itemContainerIds.join(','),
+                    caption: unifiedCaption,
+                    access_token: accessToken
+                }
+            });
+
+            const creationId = carouselRes.data.id;
+            // Carousels don't support video_status, only status_code
+            await pollStatus(igId, creationId, accessToken, false);
+
+            const publishRes = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media_publish`, null, {
+                params: { creation_id: creationId, access_token: accessToken }
+            });
+            return { success: true, platform: 'Instagram', id: publishRes.data.id, postType: 'CAROUSEL' };
+        }
+
+        // ────── CASE 3: SINGLE POST (REEL or IMAGE) ──────
+        const url = urls[0];
+        const isVid = isVideo(url);
+        const params = {
             caption: unifiedCaption,
-            access_token: global.metaToken,
-            share_to_feed: true // Ensure it shows up on the main grid
+            access_token: accessToken
         };
 
-        // ENCODE the URL to prevent S3 special characters from breaking the Meta API call
-        const encodedMediaUrl = encodeURIComponent(mediaUrl);
-
-        // Use the ENCODED URL for Meta
-        if (isVideo) {
-            containerParams.video_url = mediaUrl; // Axios params object handles the encoding of components
-            containerParams.media_type = 'REELS';
+        if (isVid) {
+            params.video_url = url;
+            params.media_type = 'REELS';
+            params.share_to_feed = true; 
         } else {
-            containerParams.image_url = mediaUrl;
+            params.image_url = url;
         }
 
-        console.log(`[INSTAGRAM] Creating container for ${isVideo ? 'VIDEO' : 'IMAGE'}...`);
-        const containerRes = await axios.post(`https://graph.facebook.com/v19.0/${global.igAccountId}/media`, null, {
-            params: containerParams
+        console.log(`[INSTAGRAM] Step 1: Creating media container...`);
+        const res = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media`, null, { params });
+        const creationId = res.data.id;
+        
+        // Polling is REQUIRED for all media (Images and Videos).
+        // Meta needs time to scrape the media from S3 and process it.
+        console.log(`[INSTAGRAM] Step 2: Waiting for Meta processing...`);
+        await pollStatus(igId, creationId, accessToken, isVid);
+
+        console.log(`[INSTAGRAM] Step 3: Publishing media...`);
+        const publishRes = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media_publish`, null, {
+            params: { creation_id: creationId, access_token: accessToken }
         });
         
-        const creationId = containerRes.data?.id;
-        if (!creationId) throw new Error('Meta did not return a media creation ID');
-        
-        // Step 2: For Videos, wait for processing to finish
-        if (isVideo) {
-            console.log(`[INSTAGRAM] Waiting for video processing: ${creationId}`);
-            await pollStatus(global.igAccountId, creationId, global.metaToken);
-        }
-        
-        // Step 3: Publish Media
-        const publishRes = await axios.post(`https://graph.facebook.com/v19.0/${global.igAccountId}/media_publish`, null, {
-            params: {
-                creation_id: creationId,
-                access_token: global.metaToken
-            }
-        });
-        
-        return { success: true, platform: 'Instagram', id: publishRes.data.id };
+        return { success: true, platform: 'Instagram', id: publishRes.data.id, postType: isVid ? 'REEL' : 'POST' };
+
     } catch (error) {
         const metaError = error.response?.data?.error?.message || error.message;
         const metaDetail = error.response?.data?.error?.error_user_msg || '';
-        console.error('Instagram Publish Error:', metaError, metaDetail);
+        console.error('[INSTAGRAM] Publish Error:', metaError, metaDetail);
         throw new Error(`Instagram Error: ${metaError} ${metaDetail}`);
     }
 };
