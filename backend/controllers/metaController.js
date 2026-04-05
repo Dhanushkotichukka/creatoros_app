@@ -318,15 +318,10 @@ const pollStatus = async (igAccountId, creationId, accessToken, isVideo = false)
                 throw new Error(`Instagram Processing Error: ${msg}`);
             }
         } catch (e) {
-            // Log the error but don't crash unless it's a definitive Meta ERROR
+            // If we get an error, log it. For carousels, item containers
+            // must be FINISHED before we can create the parent container.
             const statusMsg = e.response?.data?.error?.message || e.message;
             console.warn(`[INSTAGRAM] Polling warning (attempt ${attempts + 1}):`, statusMsg);
-            
-            // If we get a 400 "Field is unknown", it usually means it is an image/carousel ready for publication
-            if (e.response?.status === 400 && !isVideo) {
-                console.log(`[INSTAGRAM] Container 400'd but not video — likely READY. Proceeding...`);
-                return true;
-            }
             
             fs.appendFileSync(statusLogPath, `[${new Date().toLocaleTimeString()}] Polling Warning: ${statusMsg}\n`);
             if (statusMsg.includes('Instagram Processing Error')) throw e;
@@ -410,17 +405,16 @@ exports.publishToInstagram = async (mediaUrls, metadata) => {
                 itemContainerIds.push(itemRes.data.id);
             }
 
-            // Wait for items to be processed (only for videos)
+            // Wait for items to be processed (MANDATORY for all items, images and videos)
             for (let i = 0; i < itemContainerIds.length; i++) {
                 const cId = itemContainerIds[i];
                 const isVid = isVideo(urls[i]);
-                if (isVid) {
-                    console.log(`[INSTAGRAM] Verifying carousel video item: ${cId}`);
-                    await pollStatus(igId, cId, accessToken, true);
-                }
+                console.log(`[INSTAGRAM] Verifying carousel item ${i+1}/${itemContainerIds.length}: ${cId} (${isVid ? 'VIDEO' : 'IMAGE'})`);
+                await pollStatus(igId, cId, accessToken, isVid);
             }
 
             // Create Carousel Container
+            console.log(`[INSTAGRAM] Creating Carousel Container...`);
             const carouselRes = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media`, null, {
                 params: {
                     media_type: 'CAROUSEL',
@@ -431,13 +425,30 @@ exports.publishToInstagram = async (mediaUrls, metadata) => {
             });
 
             const creationId = carouselRes.data.id;
-            // Carousels don't support video_status, only status_code
+            // Carousels take time to process too
+            console.log(`[INSTAGRAM] Waiting for Carousel Container to be ready...`);
             await pollStatus(igId, creationId, accessToken, false);
 
-            const publishRes = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media_publish`, null, {
-                params: { creation_id: creationId, access_token: accessToken }
-            });
-            return { success: true, platform: 'Instagram', id: publishRes.data.id, postType: 'CAROUSEL' };
+            console.log(`[INSTAGRAM] Publishing Carousel...`);
+            await new Promise(r => setTimeout(r, 2000));
+            
+            try {
+                const publishRes = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media_publish`, null, {
+                    params: { creation_id: creationId, access_token: accessToken }
+                });
+                return { success: true, platform: 'Instagram', id: publishRes.data.id, postType: 'CAROUSEL' };
+            } catch (publishErr) {
+                const msg = publishErr.response?.data?.error?.message || publishErr.message;
+                if (msg.includes('ready') || msg.includes('available')) {
+                    console.log(`[INSTAGRAM] Carousel not quite ready (propagation delay). Retrying once in 5s...`);
+                    await new Promise(r => setTimeout(r, 5000));
+                    const retryRes = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media_publish`, null, {
+                        params: { creation_id: creationId, access_token: accessToken }
+                    });
+                    return { success: true, platform: 'Instagram', id: retryRes.data.id, postType: 'CAROUSEL' };
+                }
+                throw publishErr;
+            }
         }
 
         // ────── CASE 3: SINGLE POST (REEL or IMAGE) ──────
@@ -466,11 +477,26 @@ exports.publishToInstagram = async (mediaUrls, metadata) => {
         await pollStatus(igId, creationId, accessToken, isVid);
 
         console.log(`[INSTAGRAM] Step 3: Publishing media...`);
-        const publishRes = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media_publish`, null, {
-            params: { creation_id: creationId, access_token: accessToken }
-        });
+        // Add a small optional delay for better reliability after polling
+        await new Promise(r => setTimeout(r, 2000));
         
-        return { success: true, platform: 'Instagram', id: publishRes.data.id, postType: isVid ? 'REEL' : 'POST' };
+        try {
+            const publishRes = await axios.post(`https://graph.facebook.com/v19.0/${igAccountId}/media_publish`, null, {
+                params: { creation_id: creationId, access_token: accessToken }
+            });
+            return { success: true, platform: 'Instagram', id: publishRes.data.id, postType: isVid ? 'REEL' : 'POST' };
+        } catch (publishErr) {
+            const msg = publishErr.response?.data?.error?.message || publishErr.message;
+            if (msg.includes('ready') || msg.includes('available')) {
+                console.log(`[INSTAGRAM] Media not quite ready (propagation delay). Retrying once in 5s...`);
+                await new Promise(r => setTimeout(r, 5000));
+                const retryRes = await axios.post(`https://graph.facebook.com/v19.0/${igAccountId}/media_publish`, null, {
+                    params: { creation_id: creationId, access_token: accessToken }
+                });
+                return { success: true, platform: 'Instagram', id: retryRes.data.id, postType: isVid ? 'REEL' : 'POST' };
+            }
+            throw publishErr;
+        }
 
     } catch (error) {
         const metaError = error.response?.data?.error?.message || error.message;

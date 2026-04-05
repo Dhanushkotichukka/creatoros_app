@@ -67,50 +67,46 @@ exports.publishToAll = async (req, res) => {
                 }
             }
 
-            // ── Generate long-lived presigned URLs for Instagram ──────────────
-            // Instagram's scraper fetches image_url directly. Short-lived or
-            // complex signed S3 URLs fail. A 7-day presigned GET URL works
-            // reliably since it's clean HTTPS with no ACL changes needed.
+            // ── Clean Upload for Instagram ────────────────────────────────────
+            // Instagram's scraper is extremely sensitive to URL formats. 
+            // We re-upload the local temp files with "clean" names and 
+            // explicit extensions to any-but-certain Meta successes.
             if (hasInstagram && localTempPaths.length > 0) {
                 const isAWSConfigured = process.env.AWS_ACCESS_KEY_ID &&
                     process.env.AWS_ACCESS_KEY_ID !== 'your_aws_access_key_here';
 
                 if (isAWSConfigured) {
-                    const { GetObjectCommand } = require('@aws-sdk/client-s3');
-                    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-                    const { S3Client: S3ForIG } = require('@aws-sdk/client-s3');
-
-                    const s3ig = new S3ForIG({
-                        region: process.env.AWS_REGION || 'us-east-1',
-                        credentials: {
-                            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-                            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-                        },
-                    });
-                    const BUCKET = process.env.AWS_S3_BUCKET_TEMP || 'creator-os-1';
+                    const s3Service = require('../services/s3Service');
                     const freshUrls = [];
 
                     for (let idx = 0; idx < localTempPaths.length; idx++) {
                         try {
-                            // Extract the S3 key from the original URL
-                            const originalUrl = urls[idx] || urls[0];
-                            const urlObj = new URL(originalUrl);
-                            // Key is the pathname without leading /
-                            const key = decodeURIComponent(urlObj.pathname.replace(/^\//, ''));
+                            const localPath = localTempPaths[idx];
+                            const ext = path.extname(localPath).toLowerCase() || '.jpg';
+                            
+                            // Map extension to mime type
+                            let mimeType = 'image/jpeg';
+                            if (ext === '.png') mimeType = 'image/png';
+                            else if (ext === '.webp') mimeType = 'image/webp';
+                            else if (['.mp4', '.mov', '.avi'].includes(ext)) mimeType = 'video/mp4';
 
-                            const cmd = new GetObjectCommand({ Bucket: BUCKET, Key: key });
-                            // 7 days = 604800 seconds — long enough for Instagram to crawl
-                            const longUrl = await getSignedUrl(s3ig, cmd, { expiresIn: 604800 });
+                            const cleanKey = `clean-ig/${Date.now()}-${idx}${ext}`;
+                            const fileBuffer = fs.readFileSync(localPath);
+                            
+                            console.log(`[PUBLISH] Sanitizing for Instagram: ${cleanKey}`);
+                            await s3Service.uploadToTempStorage(fileBuffer, cleanKey, mimeType);
+                            
+                            const longUrl = await s3Service.getPresignedUrl(s3Service.TEMP_BUCKET, cleanKey, 604800);
                             freshUrls.push(longUrl);
-                            console.log(`[PUBLISH] ✅ 7-day presigned URL generated for Instagram (item ${idx})`);
+                            console.log(`[PUBLISH] ✅ Sanitized S3 URL generated for Instagram (item ${idx})`);
                         } catch (signErr) {
-                            console.warn(`[PUBLISH] ⚠️  Presign failed for item ${idx}, using original:`, signErr.message);
+                            console.warn(`[PUBLISH] ⚠️ Sanitization failed for item ${idx}, using original:`, signErr.message);
                             freshUrls.push(urls[idx] || urls[0]);
                         }
                     }
                     instagramUrls = freshUrls;
                 } else {
-                    console.warn('[PUBLISH] ⚠️  AWS not configured — passing original URLs to Instagram.');
+                    console.warn('[PUBLISH] ⚠️ AWS not configured — passing original URLs to Instagram.');
                     instagramUrls = urls;
                 }
             }

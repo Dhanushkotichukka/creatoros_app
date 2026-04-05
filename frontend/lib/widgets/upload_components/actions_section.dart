@@ -28,9 +28,18 @@ class ActionsSection extends StatelessWidget {
             },
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-              side: BorderSide(color: Colors.grey.shade700, width: 2),
+              side: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade700 : Colors.grey.shade300, 
+                width: 1.5
+              ),
             ),
-            child: const Text('Drafts', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+            child: Text(
+              'Drafts', 
+              style: TextStyle(
+                fontWeight: FontWeight.bold, 
+                color: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87
+              )
+            ),
           ),
           const SizedBox(width: 16),
           ElevatedButton(

@@ -29,15 +29,15 @@ class HeaderSection extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Row(
-                    children: const [
-                      Icon(Icons.share, size: 16, color: Colors.white70),
-                      SizedBox(width: 4),
+                    children: [
+                      Icon(Icons.share, size: 16, color: Theme.of(context).textTheme.bodySmall?.color),
+                      const SizedBox(width: 4),
                       Expanded(
                         child: Text(
                           'Create once publish every where',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.white70,
+                            color: Theme.of(context).textTheme.bodySmall?.color,
                           ),
                         ),
                       ),

@@ -34,7 +34,9 @@ class _UploadContentSectionState extends State<UploadContentSection> {
               width: double.infinity,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: mediaPaths.isEmpty ? Colors.grey.shade900 : Colors.black87,
+                color: mediaPaths.isEmpty 
+                    ? (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade900 : Colors.grey.shade100) 
+                    : (Theme.of(context).brightness == Brightness.dark ? Colors.black87 : Colors.grey.shade200),
               ),
               child: _isUploading 
                   ? const Center(child: CircularProgressIndicator())
@@ -48,7 +50,7 @@ class _UploadContentSectionState extends State<UploadContentSection> {
               padding: const EdgeInsets.all(8.0),
               child: Text(
                 '${mediaPaths.length} item(s) selected',
-                style: const TextStyle(color: Colors.white70, fontSize: 12),
+                style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 12),
               ),
             ),
         ],
@@ -59,16 +61,16 @@ class _UploadContentSectionState extends State<UploadContentSection> {
   Widget _buildEmptyState() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: const [
+      children: [
         Icon(Icons.add_photo_alternate, size: 48, color: Colors.blueAccent),
         SizedBox(height: 8),
         Text(
           'Upload Content',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Theme.of(context).textTheme.bodyLarge?.color),
         ),
         Text(
           'Select up to 10 images or 1 video',
-          style: TextStyle(color: Colors.white70, fontSize: 12),
+          style: TextStyle(color: Theme.of(context).textTheme.bodySmall?.color, fontSize: 12),
         ),
       ],
     );
@@ -120,7 +122,6 @@ class _UploadContentSectionState extends State<UploadContentSection> {
   Future<void> _pickMedia(BuildContext context) async {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey.shade900,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
         return Container(
@@ -130,8 +131,8 @@ class _UploadContentSectionState extends State<UploadContentSection> {
             children: [
               ListTile(
                 leading: const Icon(Icons.photo_library, color: Colors.blueAccent),
-                title: const Text('Pick Image(s)', style: TextStyle(color: Colors.white)),
-                subtitle: const Text('Select up to 10 photos for a Carousel', style: TextStyle(color: Colors.white54)),
+                title: const Text('Pick Image(s)'),
+                subtitle: const Text('Select up to 10 photos for a Carousel'),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final ImagePicker picker = ImagePicker();
@@ -147,7 +148,7 @@ class _UploadContentSectionState extends State<UploadContentSection> {
               ),
               ListTile(
                 leading: const Icon(Icons.videocam, color: Colors.redAccent),
-                title: const Text('Pick Video', style: TextStyle(color: Colors.white)),
+                title: const Text('Pick Video'),
                 onTap: () async {
                   Navigator.pop(ctx);
                   final ImagePicker picker = ImagePicker();

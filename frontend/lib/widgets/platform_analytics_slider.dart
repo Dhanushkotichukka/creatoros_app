@@ -35,7 +35,7 @@ class PlatformAnalyticsSlider extends StatelessWidget {
         itemCount: platforms.length + 1,
         itemBuilder: (context, index) {
           if (index == platforms.length) {
-            return const _AddPlatformCard();
+            return _AddPlatformCard();
           }
 
           final pData = platforms[index];
@@ -73,7 +73,7 @@ class _PlatformCard extends StatelessWidget {
   final String? avatarUrl;
   final String? accountName;
 
-  const _PlatformCard({
+  _PlatformCard({
     required this.name,
     required this.views,
     required this.subText,
@@ -85,13 +85,22 @@ class _PlatformCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 160,
       margin: const EdgeInsets.only(right: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: isDark ? Colors.white12 : Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,7 +123,7 @@ class _PlatformCard extends StatelessWidget {
           ),
           const Spacer(),
           Text(views, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          Text(subText, style: TextStyle(fontSize: 12, color: Colors.grey[400])),
+          Text(subText, style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[600])),
         ],
       ),
     );
@@ -122,19 +131,20 @@ class _PlatformCard extends StatelessWidget {
 }
 
 class _AddPlatformCard extends StatelessWidget {
-  const _AddPlatformCard();
+  _AddPlatformCard();
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 120,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey[800]!),
-        color: Colors.grey[950],
+        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[300]!),
+        color: isDark ? Colors.grey[950] : Colors.grey[50],
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Column(
+      child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(Icons.add_circle_outline, color: Colors.grey),
@@ -149,10 +159,11 @@ class _AddPlatformCard extends StatelessWidget {
 class _ConnectPlatformCard extends StatelessWidget {
   final String name;
 
-  const _ConnectPlatformCard({required this.name});
+  _ConnectPlatformCard({required this.name});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     IconData iconData;
     switch (name.toLowerCase()) {
       case 'youtube': iconData = Icons.play_circle_fill; break;
@@ -166,9 +177,16 @@ class _ConnectPlatformCard extends StatelessWidget {
       margin: const EdgeInsets.only(right: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[800]!),
+        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

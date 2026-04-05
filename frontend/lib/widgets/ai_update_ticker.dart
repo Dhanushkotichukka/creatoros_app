@@ -28,7 +28,7 @@ class AIUpdateTicker extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: children.isEmpty 
-                    ? [const TickerItem(text: 'Analyzing recent performance...')]
+                    ? [TickerItem(text: 'Analyzing recent performance...')]
                     : children,
               ),
             ),
@@ -41,10 +41,18 @@ class AIUpdateTicker extends StatelessWidget {
 
 class TickerItem extends StatelessWidget {
   final String text;
-  const TickerItem({super.key, required this.text});
+  TickerItem({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {
-    return Text(text, style: const TextStyle(fontSize: 14, color: Colors.white70));
+    return Text(
+      text, 
+      style: TextStyle(
+        fontSize: 13, 
+        color: Theme.of(context).brightness == Brightness.dark 
+            ? Colors.white70 
+            : Colors.deepPurple[900]
+      )
+    );
   }
 }

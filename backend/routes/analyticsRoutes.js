@@ -338,7 +338,9 @@ router.get('/platforms/status', async (req, res) => {
                 avatar: global.igAvatar || null
             },
             linkedin: {
-                connected: !!global.linkedinToken
+                connected: !!global.linkedinToken,
+                name: global.linkedinName || null,
+                avatar: global.linkedinAvatar || null
             }
         });
     } catch (error) {

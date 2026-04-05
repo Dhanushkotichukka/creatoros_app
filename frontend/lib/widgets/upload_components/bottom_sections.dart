@@ -70,7 +70,10 @@ class BottomSections extends StatelessWidget {
             if (items.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
-                child: Text(emptyMessage, style: const TextStyle(color: Colors.grey)),
+                child: Text(
+                  emptyMessage, 
+                  style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey : Colors.grey.shade600)
+                ),
               )
             else
               ListView.builder(

@@ -6,7 +6,7 @@ import '../providers/view_state_provider.dart';
 class ConnectPlatformsView extends StatefulWidget {
   final VoidCallback? onConnected;
   
-  const ConnectPlatformsView({super.key, this.onConnected});
+  ConnectPlatformsView({super.key, this.onConnected});
 
   @override
   State<ConnectPlatformsView> createState() => _ConnectPlatformsViewState();
@@ -46,15 +46,17 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> with Widget
     setState(() => _isLoading = true);
     try {
       final data = await ApiService.getPlatformStatuses();
-      setState(() {
-        _statuses = {
-          'youtube': data['youtube'] ?? {'connected': false},
-          'instagram': data['instagram'] ?? {'connected': false},
-          'linkedin': data['linkedin'] ?? {'connected': false},
-        };
-        _isLoading = false;
-        _error = null;
-      });
+      if (mounted) {
+        setState(() {
+          _statuses = {
+            'youtube': data['youtube'] ?? {'connected': false},
+            'instagram': data['instagram'] ?? {'connected': false},
+            'linkedin': data['linkedin'] ?? {'connected': false},
+          };
+          _isLoading = false;
+          _error = null;
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -83,17 +85,18 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> with Widget
   Widget build(BuildContext context) {
     final viewState = context.watch<ViewStateProvider>();
     final canPop = Navigator.canPop(context);
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Connect & Sync', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: Colors.white)),
+        title: Text('Connect & Sync', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: isDark ? Colors.white : Colors.black)),
         centerTitle: true,
-        backgroundColor: Colors.black,
         elevation: 0,
+        backgroundColor: Colors.transparent,
         leading: (canPop || viewState.showConnectView) 
           ? IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              icon: Icon(Icons.arrow_back, color: isDark ? Colors.white : Colors.black),
               onPressed: () {
                 if (canPop) {
                   Navigator.pop(context);
@@ -105,7 +108,7 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> with Widget
           : null,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
+            icon: Icon(Icons.refresh, color: isDark ? Colors.white : Colors.black),
             onPressed: _fetchStatuses,
           )
         ],
@@ -200,14 +203,20 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> with Widget
     final bool isConnected = status['connected'] ?? false;
     final String? accountName = status['name'];
     final String? accountAvatar = status['avatar'];
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Container(
       width: 320,
+      height: 360,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF141414),
+        color: isDark ? const Color(0xFF141414) : Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isConnected ? color.withOpacity(0.5) : Colors.grey[900]!),
-        boxShadow: isConnected ? [BoxShadow(color: color.withOpacity(0.1), blurRadius: 20, spreadRadius: 2)] : null,
+        border: Border.all(color: isConnected ? color.withOpacity(0.5) : (isDark ? Colors.grey[900]! : Colors.grey[200]!)),
+        boxShadow: isConnected 
+            ? [BoxShadow(color: color.withOpacity(0.1), blurRadius: 20, spreadRadius: 2)] 
+            : [BoxShadow(color: Colors.black.withOpacity(isDark ? 0 : 0.03), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,7 +250,7 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> with Widget
             ]
           ),
           const SizedBox(height: 20),
-          Text(title, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(title, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 22, fontWeight: FontWeight.bold)),
           if (isConnected && accountName != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),
@@ -249,7 +258,7 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> with Widget
             ),
           const SizedBox(height: 10),
           Text(desc, style: const TextStyle(color: Colors.grey, fontSize: 14, height: 1.5)),
-          const SizedBox(height: 30),
+          const Spacer(),
           if (isConnected)
              Row(
                children: [

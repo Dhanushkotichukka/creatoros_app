@@ -23,11 +23,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late Future<Map<String, dynamic>> _analyticsFuture;
+  int _lastProcessedTrigger = 0;
 
   @override
   void initState() {
     super.initState();
     _analyticsFuture = ApiService.getAnalyticsOverview();
+  }
+
+  void _refreshData() {
+    setState(() {
+      _analyticsFuture = ApiService.getAnalyticsOverview();
+    });
   }
 
   @override
@@ -49,17 +56,20 @@ class _HomeScreenState extends State<HomeScreen> {
         
         final viewState = context.watch<ViewStateProvider>();
 
+        // Check if the home reset trigger has changed (from BottomNav click or external signal)
+        if (viewState.homeResetTrigger > _lastProcessedTrigger) {
+          _lastProcessedTrigger = viewState.homeResetTrigger;
+          // Defer the state change to avoid "build phase" errors
+          Future.microtask(() => _refreshData());
+        }
+
         if (platforms.isEmpty) {
-          return ConnectPlatformsView(onConnected: () => setState(() {
-            _analyticsFuture = ApiService.getAnalyticsOverview();
-          }));
+          return ConnectPlatformsView(onConnected: () => _refreshData());
         }
 
         if (viewState.showConnectView) {
           return ConnectPlatformsView(onConnected: () {
-            setState(() {
-              _analyticsFuture = ApiService.getAnalyticsOverview();
-            });
+            _refreshData();
             viewState.setShowConnectView(false);
           });
         }
@@ -112,11 +122,12 @@ class _HomeScreenState extends State<HomeScreen> {
       Padding(
         padding: const EdgeInsets.only(right: 4.0, top: 8.0, bottom: 8.0),
         child: ElevatedButton.icon(
-          onPressed: () {
-            Navigator.push(
+          onPressed: () async {
+            await Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => MultiPostHubScreen(initialPlatforms: connectedPlatformTypes)),
             );
+            _refreshData();
           },
           icon: const Icon(Icons.upload, size: 18),
           label: const Text('Upload'),

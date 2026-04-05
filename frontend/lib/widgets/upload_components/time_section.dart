@@ -33,12 +33,12 @@ class TimeSection extends StatelessWidget {
                   },
                   style: OutlinedButton.styleFrom(
                     backgroundColor: activePost.scheduledTime == null
-                        ? Colors.blueAccent.withAlpha(50)
+                        ? Colors.blueAccent.withAlpha(Theme.of(context).brightness == Brightness.dark ? 50 : 30)
                         : null,
                     side: BorderSide(
                       color: activePost.scheduledTime == null
                           ? Colors.blueAccent
-                          : Colors.grey.shade700,
+                          : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade700 : Colors.grey.shade300),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -49,12 +49,12 @@ class TimeSection extends StatelessWidget {
                   onPressed: () => _pickDateTime(context),
                   style: OutlinedButton.styleFrom(
                     backgroundColor: activePost.scheduledTime != null
-                        ? Colors.blueAccent.withAlpha(50)
+                        ? Colors.blueAccent.withAlpha(Theme.of(context).brightness == Brightness.dark ? 50 : 30)
                         : null,
                     side: BorderSide(
                       color: activePost.scheduledTime != null
                           ? Colors.blueAccent
-                          : Colors.grey.shade700,
+                          : (Theme.of(context).brightness == Brightness.dark ? Colors.grey.shade700 : Colors.grey.shade300),
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),

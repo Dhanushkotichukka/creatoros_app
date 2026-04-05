@@ -1,15 +1,16 @@
 {
-  "timestamp": "2026-04-05T12:18:11.069Z",
+  "timestamp": "2026-04-05T15:21:14.608Z",
   "results": [
     {
-      "platform": "Instagram",
-      "success": false,
-      "error": "Instagram Error: An unexpected error has occurred. Please retry your request later. "
+      "success": true,
+      "platform": "YouTube",
+      "id": "h6tS9gZuReg"
     },
     {
       "success": true,
-      "platform": "LinkedIn",
-      "id": "urn:li:share:7446531629398945792"
+      "platform": "Instagram",
+      "id": "18095626322021358",
+      "postType": "REEL"
     }
   ]
 }

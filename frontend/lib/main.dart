@@ -65,7 +65,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const MultiPostHubScreen()),
-      );
+      ).then((_) {
+        // Trigger refresh on return
+        context.read<ViewStateProvider>().resetHome();
+      });
       return;
     }
     

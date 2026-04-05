@@ -35,9 +35,13 @@ class ContentSection extends StatelessWidget {
 
     final latestVideo = sorted.isNotEmpty ? sorted.first : null;
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: Colors.grey[900],
+      elevation: isDark ? 1 : 2,
+      shadowColor: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: isDark ? const Color(0xFF141414) : Colors.white,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -110,7 +114,11 @@ class ContentSection extends StatelessWidget {
                 // Title
                 Text(
                   latestVideo != null ? (latestVideo['title'] ?? 'Untitled') : 'No recent $platform content found',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold, 
+                    fontSize: 14, 
+                    color: isDark ? Colors.white : Colors.black87
+                  ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

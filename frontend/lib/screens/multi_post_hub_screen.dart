@@ -18,12 +18,9 @@ class MultiPostHubScreen extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => PostProvider(initialPlatforms: initialPlatforms),
       child: Scaffold(
-        backgroundColor: Colors.black,
         appBar: AppBar(
           title: const Text('Post to Everywhere', style: TextStyle(fontWeight: FontWeight.bold)),
-          backgroundColor: Colors.black,
           elevation: 0,
-          foregroundColor: Colors.white,
         ),
         body: SafeArea(
           child: SingleChildScrollView(
@@ -31,22 +28,22 @@ class MultiPostHubScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const HeaderSection(),
+                HeaderSection(),
                 const SizedBox(height: 20),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Expanded(flex: 2, child: UploadContentSection()),
+                    Expanded(flex: 2, child: UploadContentSection()),
                     const SizedBox(width: 16),
-                    const Expanded(flex: 1, child: TimeSection()),
+                    Expanded(flex: 1, child: TimeSection()),
                   ],
                 ),
                 const SizedBox(height: 20),
-                const PlatformContentSection(),
+                PlatformContentSection(),
                 const SizedBox(height: 10),
-                const ActionsSection(),
+                ActionsSection(),
                 const SizedBox(height: 20),
-                const BottomSections(),
+                BottomSections(),
                 const SizedBox(height: 40),
               ],
             ),

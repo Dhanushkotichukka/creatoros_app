@@ -18,7 +18,7 @@ class AIService {
 }
 
 class PlatformContentSection extends StatefulWidget {
-  const PlatformContentSection({Key? key}) : super(key: key);
+  PlatformContentSection({Key? key}) : super(key: key);
 
   @override
   State<PlatformContentSection> createState() => _PlatformContentSectionState();
@@ -72,9 +72,11 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
       _captionController.selection = TextSelection.fromPosition(TextPosition(offset: _captionController.text.length));
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Card(
       elevation: 4,
-      color: Colors.grey.shade900,
+      color: isDark ? const Color(0xFF141414) : Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -82,17 +84,20 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildPlatformSelector(context, targetPlatforms, connectedPlatforms, platformToDisplay),
-            const Divider(height: 32, color: Colors.white10),
+            Divider(height: 32, color: isDark ? Colors.white10 : Colors.grey[200]),
             
             if (targetPlatforms.contains(platformToDisplay)) ...[
               _buildPostTypeSelector(context, platformToDisplay, currentPlatformContent),
               const SizedBox(height: 20),
               _buildMetadataEditor(context, platformToDisplay, currentPlatformContent, activePost),
             ] else 
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 40),
                 child: Center(
-                  child: Text('Select or Add a platform above to start editing content', style: TextStyle(color: Colors.white54)),
+                  child: Text(
+                    'Select or Add a platform above to start editing content', 
+                    style: TextStyle(color: isDark ? Colors.white54 : Colors.black45, fontSize: 13)
+                  ),
                 ),
               ),
           ],
@@ -102,25 +107,40 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
   }
 
   Widget _buildNoConnectionsState() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.grey.shade900, borderRadius: BorderRadius.circular(12)),
-      child: const Column(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF141414) : Colors.grey.shade50, 
+        borderRadius: BorderRadius.circular(12)
+      ),
+      child: Column(
         children: [
-          Icon(Icons.link_off, size: 40, color: Colors.white24),
-          SizedBox(height: 12),
-          Text('No Social Platforms Connected', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          Text('Connect your accounts in Settings to start posting', style: TextStyle(color: Colors.white54, fontSize: 12)),
+          Icon(Icons.link_off, size: 40, color: isDark ? Colors.white24 : Colors.grey.shade300),
+          const SizedBox(height: 12),
+          Text(
+            'No Social Platforms Connected', 
+            style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold)
+          ),
+          Text(
+            'Connect your accounts in Settings to start posting', 
+            style: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade600, fontSize: 12)
+          ),
         ],
       ),
     );
   }
 
   Widget _buildPlatformSelector(BuildContext context, Set<PlatformType> targets, Set<PlatformType> connected, PlatformType active) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Post to these platforms:', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(
+          'Post to these platforms:', 
+          style: TextStyle(color: isDark ? Colors.white70 : Colors.grey.shade700, fontSize: 12, fontWeight: FontWeight.bold)
+        ),
         const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -136,6 +156,7 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
   }
 
   Widget _buildPlatformIcon(BuildContext context, PlatformType platform, bool isSelected) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: () => context.read<PostProvider>().setSelectedPlatform(platform),
       child: Container(
@@ -143,13 +164,22 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
         width: 60,
         height: 60,
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blueAccent.withAlpha(30) : Colors.white.withAlpha(5),
+          color: isSelected ? Colors.blueAccent.withAlpha(30) : (isDark ? Colors.white.withAlpha(5) : Colors.grey.shade50),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? Colors.blueAccent : Colors.white10, width: 2),
+          border: Border.all(
+            color: isSelected ? Colors.blueAccent : (isDark ? Colors.white10 : Colors.grey.shade200), 
+            width: 2
+          ),
         ),
         child: Stack(
           children: [
-            Center(child: Icon(_getPlatformIcon(platform), size: 28, color: isSelected ? Colors.blueAccent : Colors.white60)),
+            Center(
+              child: Icon(
+                _getPlatformIcon(platform), 
+                size: 28, 
+                color: isSelected ? Colors.blueAccent : (isDark ? Colors.white60 : Colors.grey.shade400)
+              )
+            ),
             Positioned(
               right: -2,
               top: -2,
@@ -157,8 +187,8 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
                 onTap: () => context.read<PostProvider>().toggleTargetPlatform(platform),
                 child: Container(
                   padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                  child: const Icon(Icons.close, size: 10, color: Colors.white70),
+                  decoration: BoxDecoration(color: isDark ? Colors.black54 : Colors.grey.shade300, shape: BoxShape.circle),
+                  child: Icon(Icons.close, size: 10, color: isDark ? Colors.white70 : Colors.black87),
                 ),
               ),
             ),
@@ -183,10 +213,11 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
     final List<String> types = ['Post', 'Reel', 'Story'];
     if (platform == PlatformType.youtube) return const SizedBox.shrink();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Content Type', style: TextStyle(color: Colors.white54, fontSize: 11)),
+        Text('Content Type', style: TextStyle(color: isDark ? Colors.white54 : Colors.grey.shade600, fontSize: 11)),
         const SizedBox(height: 8),
         Row(
           children: types.map((type) {
@@ -199,9 +230,12 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
                 onSelected: (val) {
                   if (val) context.read<PostProvider>().updateContent(platform, content.copyWith(contentType: type));
                 },
-                backgroundColor: Colors.transparent,
+                backgroundColor: isDark ? Colors.transparent : Colors.grey.shade50,
                 selectedColor: Colors.blueAccent,
-                labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.white70, fontSize: 13),
+                labelStyle: TextStyle(
+                  color: isSelected ? Colors.white : (isDark ? Colors.white70 : Colors.black87), 
+                  fontSize: 13
+                ),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               ),
             );
@@ -212,17 +246,18 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
   }
 
   Widget _buildMetadataEditor(BuildContext context, PlatformType platform, PlatformContent content, dynamic activePost) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         TextField(
           controller: _titleController,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontWeight: FontWeight.bold),
           decoration: InputDecoration(
             hintText: 'Enter title (Platform specific)',
-            hintStyle: const TextStyle(color: Colors.white24),
-            prefixIcon: const Icon(Icons.title, color: Colors.white24),
+            hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.grey.shade400),
+            prefixIcon: Icon(Icons.title, color: isDark ? Colors.white24 : Colors.grey.shade400),
             filled: true,
-            fillColor: Colors.white.withAlpha(5),
+            fillColor: isDark ? Colors.white.withAlpha(5) : Colors.grey.shade50,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
           ),
           onChanged: (val) => context.read<PostProvider>().updateContent(platform, content.copyWith(title: val)),
@@ -231,12 +266,12 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
         TextField(
           controller: _captionController,
           maxLines: 5,
-          style: const TextStyle(color: Colors.white70),
+          style: TextStyle(color: isDark ? Colors.white70 : Colors.black87),
           decoration: InputDecoration(
             hintText: 'Write caption...',
-            hintStyle: const TextStyle(color: Colors.white24),
+            hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.grey.shade400),
             filled: true,
-            fillColor: Colors.white.withAlpha(5),
+            fillColor: isDark ? Colors.white.withAlpha(5) : Colors.grey.shade50,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
           ),
           onChanged: (val) => context.read<PostProvider>().updateContent(platform, content.copyWith(description: val)),
@@ -268,20 +303,23 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
   }
 
   void _showAddPlatformModal(BuildContext context, List<PlatformType> platforms) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey.shade900,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Add to this post', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text(
+              'Add to this post', 
+              style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 18, fontWeight: FontWeight.bold)
+            ),
             const SizedBox(height: 20),
             ...platforms.map((p) => ListTile(
               leading: Icon(_getPlatformIcon(p), color: Colors.blueAccent),
-              title: Text(p.name.toUpperCase(), style: const TextStyle(color: Colors.white)),
+              title: Text(p.name.toUpperCase(), style: TextStyle(color: isDark ? Colors.white : Colors.black87)),
               onTap: () {
                 context.read<PostProvider>().toggleTargetPlatform(p);
                 Navigator.pop(ctx);
