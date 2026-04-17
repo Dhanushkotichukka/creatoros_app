@@ -8,5 +8,7 @@ const upload = multer({ storage: storage });
 
 router.post('/upload', upload.single('file'), mediaController.uploadFile);
 router.get('/list', mediaController.listItems);
+router.delete('/delete', mediaController.deleteItem);
+router.get('/download-url', mediaController.getDownloadUrl);
 
 module.exports = router;

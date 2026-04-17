@@ -25,6 +25,30 @@ exports.uploadFile = async (req, res) => {
     }
 };
 
+exports.deleteItem = async (req, res) => {
+    const { fileName, storage } = req.body;
+    if (!fileName) return res.status(400).json({ error: 'fileName is required' });
+    try {
+        await s3Service.deleteStorageObject(fileName, storage || 'Local');
+        res.json({ success: true, message: `Deleted ${fileName}` });
+    } catch (error) {
+        console.error('Delete Error:', error);
+        res.status(500).json({ error: 'Failed to delete file' });
+    }
+};
+
+exports.getDownloadUrl = async (req, res) => {
+    const { fileName, storage } = req.query;
+    if (!fileName) return res.status(400).json({ error: 'fileName is required' });
+    try {
+        const url = await s3Service.getDownloadUrl(fileName, storage || 'Local');
+        res.json({ url });
+    } catch (error) {
+        console.error('Download URL Error:', error);
+        res.status(500).json({ error: 'Failed to generate download URL' });
+    }
+};
+
 exports.listItems = async (req, res) => {
     try {
         const items = await s3Service.listStorageObjects();
@@ -34,3 +58,5 @@ exports.listItems = async (req, res) => {
         res.status(500).json({ error: 'Failed to list storage items' });
     }
 };
+
+

@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command } = require("@aws-sdk/client-s3");
+const { S3Client, PutObjectCommand, GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
 const fs = require('fs');
 const path = require('path');
@@ -16,8 +16,8 @@ if (isAWSConfigured) {
     });
 }
 
-const TEMP_BUCKET = process.env.AWS_S3_BUCKET_TEMP || "creatoros-temp-assets";
-const FINAL_BUCKET = process.env.AWS_S3_BUCKET_FINAL || "creatoros-final-assets";
+const TEMP_BUCKET = process.env.AWS_S3_BUCKET_TEMP || "creator-os-1";
+const FINAL_BUCKET = process.env.AWS_S3_BUCKET_FINAL || "creatoros-final";
 
 // Local storage directory
 const LOCAL_STORAGE_DIR = path.join(__dirname, '../uploads');
@@ -142,11 +142,49 @@ const listStorageObjects = async () => {
     return [...s3Items, ...localItems];
 };
 
+// Delete a file by name and storage label
+const deleteStorageObject = async (fileName, storageLabel) => {
+    if (storageLabel === 'Local') {
+        const filePath = path.join(LOCAL_STORAGE_DIR, fileName);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+        return;
+    }
+
+    if (!isAWSConfigured) return;
+
+    // Determine bucket from label
+    const bucket = storageLabel === 'S3-Temp' ? TEMP_BUCKET : FINAL_BUCKET;
+    try {
+        await s3Client.send(new DeleteObjectCommand({ Bucket: bucket, Key: fileName }));
+    } catch (err) {
+        console.warn(`S3 Delete failed for ${fileName}:`, err.message);
+        throw err;
+    }
+};
+
+// Get a fresh presigned download URL for a file
+const getDownloadUrl = async (fileName, storageLabel) => {
+    if (storageLabel === 'Local') {
+        return `http://localhost:3000/uploads/${fileName}`;
+    }
+    if (!isAWSConfigured) {
+        return `http://localhost:3000/uploads/${fileName}`;
+    }
+    const bucket = storageLabel === 'S3-Temp' ? TEMP_BUCKET : FINAL_BUCKET;
+    return getPresignedUrl(bucket, fileName, 3600);
+};
+
+
+
 module.exports = {
     uploadToTempStorage,
     uploadToFinalStorage,
     getPresignedUrl,
     listStorageObjects,
+    deleteStorageObject,
+    getDownloadUrl,
     TEMP_BUCKET,
     FINAL_BUCKET
 };

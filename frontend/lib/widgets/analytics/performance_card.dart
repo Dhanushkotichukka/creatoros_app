@@ -73,8 +73,9 @@ class _PerformanceCardState extends State<PerformanceCard> {
       children: [
         Text('Engagement Rate', style: theme.textTheme.bodySmall),
         const SizedBox(height: 10),
-        Expanded(
-          child: hasGraph 
+        SizedBox(
+          height: 130,
+          child: hasGraph
             ? IgnorePointer(child: MainPerformanceChart(data: widget.data))
             : Icon(Icons.auto_graph, size: 60, color: theme.colorScheme.primary.withOpacity(0.5)),
         ),

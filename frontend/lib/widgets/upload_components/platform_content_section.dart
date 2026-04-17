@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/multi_post/platform_type.dart';
 import '../../models/multi_post/platform_content.dart';
 import '../../providers/post_provider.dart';
+import '../../utils/app_colors.dart';
 
 // Mock AIService since the actual one is not fully provided
 class AIService {
@@ -72,11 +73,12 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
       _captionController.selection = TextSelection.fromPosition(TextPosition(offset: _captionController.text.length));
     }
 
+    final c = Theme.of(context).extension<AppColors>()!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
       elevation: 4,
-      color: isDark ? const Color(0xFF141414) : Colors.white,
+      color: c.surface,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -107,12 +109,13 @@ class _PlatformContentSectionState extends State<PlatformContentSection> {
   }
 
   Widget _buildNoConnectionsState() {
+    final c = Theme.of(context).extension<AppColors>()!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF141414) : Colors.grey.shade50, 
+        color: c.surface,
         borderRadius: BorderRadius.circular(12)
       ),
       child: Column(

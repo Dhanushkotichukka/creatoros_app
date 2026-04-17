@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../utils/app_colors.dart';
 
 /// Call this to open the profile panel from any screen.
 void showProfilePanel(BuildContext context) {
@@ -17,17 +18,9 @@ class _ProfilePanelSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final theme         = Theme.of(context);
+    final c             = theme.extension<AppColors>()!;
     final themeProvider = context.watch<ThemeProvider>();
-
-    // Colours that adapt
-    final sheetBg = isDark ? const Color(0xFF1A1A2E) : Colors.white;
-    final handleColor = isDark ? Colors.white24 : Colors.black12;
-    final divColor = isDark ? Colors.white12 : const Color(0xFFE5E5E5);
-    final subtitleColor = isDark ? const Color(0xFFA0A0B0) : const Color(0xFF6B6B6B);
-    final primary = isDark ? const Color(0xFF6C63FF) : const Color(0xFFFF6A3D);
-    final orange = const Color(0xFFFF6A3D);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.6,
@@ -36,7 +29,7 @@ class _ProfilePanelSheet extends StatelessWidget {
       builder: (_, scrollController) {
         return Container(
           decoration: BoxDecoration(
-            color: sheetBg,
+            color: c.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             boxShadow: [
               BoxShadow(
@@ -57,7 +50,7 @@ class _ProfilePanelSheet extends StatelessWidget {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: handleColor,
+                    color: c.border,
                     borderRadius: BorderRadius.circular(4),
                   ),
                 ),
@@ -66,20 +59,20 @@ class _ProfilePanelSheet extends StatelessWidget {
               // ── Avatar + name row ──
               Row(
                 children: [
-                  // Gradient avatar
                   Container(
                     width: 64,
                     height: 64,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF6C63FF), Color(0xFFFF6A3D)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: c.primaryGradient ??
+                          LinearGradient(
+                            colors: [c.primary, c.accent],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                       boxShadow: [
                         BoxShadow(
-                          color: primary.withOpacity(0.4),
+                          color: c.primary.withOpacity(0.4),
                           blurRadius: 16,
                           spreadRadius: 2,
                         ),
@@ -112,7 +105,7 @@ class _ProfilePanelSheet extends StatelessWidget {
                         Text(
                           'vasanth@creatoros.ai',
                           style: theme.textTheme.bodySmall?.copyWith(
-                            color: subtitleColor,
+                            color: c.textSecondary,
                             fontSize: 13,
                           ),
                         ),
@@ -120,9 +113,8 @@ class _ProfilePanelSheet extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF6C63FF), Color(0xFFFF6A3D)],
-                            ),
+                            gradient: c.primaryGradient ??
+                                LinearGradient(colors: [c.primary, c.accent]),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Text(
@@ -141,77 +133,42 @@ class _ProfilePanelSheet extends StatelessWidget {
               ),
 
               const SizedBox(height: 28),
-              Divider(color: divColor),
+              Divider(color: c.border),
               const SizedBox(height: 8),
 
               // ── Theme Toggle ──────────────────────────────────────
-              _SectionLabel(label: 'APPEARANCE', color: subtitleColor),
+              _SectionLabel(label: 'APPEARANCE', color: c.textSecondary),
               const SizedBox(height: 12),
-              _ThemeSwitcher(themeProvider: themeProvider, isDark: isDark),
+              _ThemeSwitcher(themeProvider: themeProvider, c: c),
 
               const SizedBox(height: 24),
-              Divider(color: divColor),
+              Divider(color: c.border),
               const SizedBox(height: 8),
 
               // ── Account ──────────────────────────────────────────
-              _SectionLabel(label: 'ACCOUNT', color: subtitleColor),
+              _SectionLabel(label: 'ACCOUNT', color: c.textSecondary),
               const SizedBox(height: 4),
-              _MenuTile(
-                icon: Icons.person_outline,
-                label: 'Profile Information',
-                color: primary,
-                onTap: () {},
-              ),
-              _MenuTile(
-                icon: Icons.link_outlined,
-                label: 'Connected Platforms',
-                color: primary,
-                onTap: () => Navigator.pop(context),
-              ),
-              _MenuTile(
-                icon: Icons.workspace_premium_outlined,
-                label: 'Subscription & Plans',
-                color: orange,
-                onTap: () {},
-              ),
+              _MenuTile(icon: Icons.person_outline,          label: 'Profile Information',  color: c.primary, textColor: c.textPrimary, chevronColor: c.textSecondary, onTap: () {}),
+              _MenuTile(icon: Icons.link_outlined,           label: 'Connected Platforms',  color: c.primary, textColor: c.textPrimary, chevronColor: c.textSecondary, onTap: () => Navigator.pop(context)),
+              _MenuTile(icon: Icons.workspace_premium_outlined, label: 'Subscription & Plans', color: c.accent, textColor: c.textPrimary, chevronColor: c.textSecondary, onTap: () {}),
 
               const SizedBox(height: 8),
-              Divider(color: divColor),
+              Divider(color: c.border),
               const SizedBox(height: 8),
 
               // ── Preferences ───────────────────────────────────────
-              _SectionLabel(label: 'PREFERENCES', color: subtitleColor),
+              _SectionLabel(label: 'PREFERENCES', color: c.textSecondary),
               const SizedBox(height: 4),
-              _MenuTile(
-                icon: Icons.notifications_outlined,
-                label: 'Notifications',
-                color: primary,
-                onTap: () {},
-              ),
-              _MenuTile(
-                icon: Icons.language_outlined,
-                label: 'Language & Region',
-                color: primary,
-                onTap: () {},
-              ),
-              _MenuTile(
-                icon: Icons.privacy_tip_outlined,
-                label: 'Privacy & Security',
-                color: primary,
-                onTap: () {},
-              ),
+              _MenuTile(icon: Icons.notifications_outlined, label: 'Notifications',     color: c.primary, textColor: c.textPrimary, chevronColor: c.textSecondary, onTap: () {}),
+              _MenuTile(icon: Icons.language_outlined,      label: 'Language & Region', color: c.primary, textColor: c.textPrimary, chevronColor: c.textSecondary, onTap: () {}),
+              _MenuTile(icon: Icons.privacy_tip_outlined,   label: 'Privacy & Security', color: c.primary, textColor: c.textPrimary, chevronColor: c.textSecondary, onTap: () {}),
 
               const SizedBox(height: 8),
-              Divider(color: divColor),
+              Divider(color: c.border),
               const SizedBox(height: 8),
 
               // ── Danger zone ───────────────────────────────────────
-              _MenuTile(
-                icon: Icons.logout,
-                label: 'Sign Out',
-                color: Colors.redAccent,
-                onTap: () => Navigator.pop(context),
-              ),
+              _MenuTile(icon: Icons.logout, label: 'Sign Out', color: Colors.redAccent, textColor: c.textPrimary, chevronColor: c.textSecondary, onTap: () => Navigator.pop(context)),
 
               const SizedBox(height: 32),
             ],
@@ -248,21 +205,25 @@ class _SectionLabel extends StatelessWidget {
 // ── Menu tile ─────────────────────────────────────────────────────────────────
 class _MenuTile extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final Color color;
+  final String   label;
+  final Color    color;
+  final Color    textColor;
+  final Color    chevronColor;
   final VoidCallback onTap;
+
   const _MenuTile({
     required this.icon,
     required this.label,
     required this.color,
+    required this.textColor,
+    required this.chevronColor,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 0),
       leading: Container(
         width: 38,
         height: 38,
@@ -274,17 +235,9 @@ class _MenuTile extends StatelessWidget {
       ),
       title: Text(
         label,
-        style: TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-          color: isDark ? Colors.white : const Color(0xFF1E1E1E),
-        ),
+        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: textColor),
       ),
-      trailing: Icon(
-        Icons.chevron_right,
-        size: 18,
-        color: isDark ? Colors.white30 : Colors.black26,
-      ),
+      trailing: Icon(Icons.chevron_right, size: 18, color: chevronColor),
       onTap: onTap,
     );
   }
@@ -293,15 +246,16 @@ class _MenuTile extends StatelessWidget {
 // ── Theme switcher pill ───────────────────────────────────────────────────────
 class _ThemeSwitcher extends StatelessWidget {
   final ThemeProvider themeProvider;
-  final bool isDark;
-  const _ThemeSwitcher({required this.themeProvider, required this.isDark});
+  final AppColors c;
+  const _ThemeSwitcher({required this.themeProvider, required this.c});
 
   @override
   Widget build(BuildContext context) {
+    final mode = themeProvider.appMode;
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: isDark ? Colors.white.withOpacity(0.06) : Colors.black.withOpacity(0.05),
+        color: c.secondary.withOpacity(0.3),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -309,16 +263,23 @@ class _ThemeSwitcher extends StatelessWidget {
           _ThemeOption(
             icon: Icons.wb_sunny_outlined,
             label: 'Light',
-            selected: !isDark,
-            selectedColor: const Color(0xFFFF6A3D),
+            selected: mode == AppMode.light,
+            selectedColor: const Color(0xFFFF6B00),
             onTap: () => themeProvider.setLight(),
           ),
           _ThemeOption(
             icon: Icons.nights_stay_outlined,
             label: 'Dark',
-            selected: isDark,
-            selectedColor: const Color(0xFF6C63FF),
+            selected: mode == AppMode.dark,
+            selectedColor: const Color(0xFFFF6B00),
             onTap: () => themeProvider.setDark(),
+          ),
+          _ThemeOption(
+            icon: Icons.auto_awesome,
+            label: 'AI',
+            selected: mode == AppMode.ai,
+            selectedColor: const Color(0xFF7C3AED),
+            onTap: () => themeProvider.setAI(),
           ),
         ],
       ),
@@ -327,10 +288,10 @@ class _ThemeSwitcher extends StatelessWidget {
 }
 
 class _ThemeOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final Color selectedColor;
+  final IconData   icon;
+  final String     label;
+  final bool       selected;
+  final Color      selectedColor;
   final VoidCallback onTap;
 
   const _ThemeOption({
@@ -354,23 +315,13 @@ class _ThemeOption extends StatelessWidget {
             color: selected ? selectedColor : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: selectedColor.withOpacity(0.4),
-                      blurRadius: 12,
-                      spreadRadius: 0,
-                    ),
-                  ]
+                ? [BoxShadow(color: selectedColor.withOpacity(0.4), blurRadius: 12)]
                 : [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                icon,
-                size: 18,
-                color: selected ? Colors.white : Colors.grey,
-              ),
+              Icon(icon, size: 18, color: selected ? Colors.white : Colors.grey),
               const SizedBox(width: 6),
               Text(
                 label,

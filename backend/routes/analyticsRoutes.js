@@ -137,17 +137,22 @@ router.get('/overview', async (req, res) => {
 
                 // Add IG media to top content pool
                 if (igData.media && igData.media.data) {
-                    const igVideos = igData.media.data.map(v => ({
-                        id: v.id,
-                        title: v.caption ? (v.caption.substring(0, 50) + '...') : 'Instagram Post',
-                        viewsNum: (v.like_count || 0) + (v.comments_count || 0),
-                        views: formatViews((v.like_count || 0) + (v.comments_count || 0)),
-                        likes: (v.like_count || 0).toString(),
-                        platform: 'Instagram',
-                        type: v.media_type.toLowerCase() === 'video' ? 'video' : 'post',
-                        thumbnail: v.thumbnail_url || v.media_url,
-                        publishedAt: new Date(v.timestamp)
-                    }));
+                    const igVideos = igData.media.data.map(v => {
+                        const viewsVal = (v.like_count || 0) + (v.comments_count || 0);
+                        return {
+                            id: v.id,
+                            title: v.caption ? (v.caption.substring(0, 50) + '...') : 'Instagram Post',
+                            viewsNum: viewsVal,
+                            views: formatViews(viewsVal),
+                            likes: (v.like_count || 0).toString(),
+                            comments: (v.comments_count || 0).toString(),
+                            engagement: viewsVal > 0 ? (((v.like_count||0) + (v.comments_count||0)) / viewsVal * 100).toFixed(1) + '%' : '—',
+                            platform: 'Instagram',
+                            type: v.media_type.toLowerCase() === 'video' ? 'video' : 'post',
+                            thumbnail: v.thumbnail_url || v.media_url,
+                            publishedAt: new Date(v.timestamp)
+                        };
+                    });
                     topContent = [...topContent, ...igVideos];
                 }
             } catch (igErr) {
@@ -163,7 +168,14 @@ router.get('/overview', async (req, res) => {
                 
                 // If API returns zero posts (common if r_member_social is missing), we MUST trigger the DB fallback
                 if (liPosts && liPosts.length > 0) {
-                    topContent = [...topContent, ...liPosts];
+                    const mappedLiPosts = liPosts.map(p => ({
+                        ...p,
+                        views: p.views || '0',
+                        likes: p.likes || '0',
+                        comments: p.comments || '0',
+                        engagement: p.engagement || '—'
+                    }));
+                    topContent = [...topContent, ...mappedLiPosts];
                 } else {
                     throw new Error('LINKEDIN_EMPTY');
                 }
@@ -199,6 +211,8 @@ router.get('/overview', async (req, res) => {
                         thumbnail: p.thumbnailUrl || p.mediaUrl || 'https://cdn-icons-png.flaticon.com/512/174/174857.png',
                         views: '0',
                         likes: '0',
+                        comments: '0',
+                        engagement: '—',
                         platform: 'LinkedIn',
                         type: p.contentType === 'video' ? 'video' : 'post',
                         publishedAt: p.publishedAt || p.createdAt
@@ -215,6 +229,8 @@ router.get('/overview', async (req, res) => {
                             thumbnail: 'https://cdn-icons-png.flaticon.com/512/174/174857.png',
                             views: '0',
                             likes: '0',
+                            comments: '0',
+                            engagement: '—',
                             platform: 'LinkedIn',
                             type: 'post',
                             publishedAt: new Date()
@@ -263,18 +279,24 @@ router.get('/overview', async (req, res) => {
                     
                     const formatViewsLocal = (num) => num >= 1000000 ? (num/1000000).toFixed(1) + 'M' : num >= 1000 ? (num/1000).toFixed(1) + 'K' : num.toString();
 
-                    const videos = statsRes.data.items.map(v => ({
-                        id: v.id,
-                        title: v.snippet.title,
-                        viewsNum: parseInt(v.statistics.viewCount) || 0,
-                        views: formatViewsLocal(parseInt(v.statistics.viewCount) || 0),
-                        likes: formatViewsLocal(parseInt(v.statistics.likeCount) || 0),
-                        comments: formatViewsLocal(parseInt(v.statistics.commentCount) || 0),
-                        platform: 'YouTube',
-                        type: 'video',
-                        thumbnail: v.snippet.thumbnails.high ? v.snippet.thumbnails.high.url : v.snippet.thumbnails.default.url,
-                        publishedAt: new Date(v.snippet.publishedAt)
-                    }));
+                    const videos = statsRes.data.items.map(v => {
+                        const viewsVal = parseInt(v.statistics.viewCount) || 0;
+                        const likesVal = parseInt(v.statistics.likeCount) || 0;
+                        const commentsVal = parseInt(v.statistics.commentCount) || 0;
+                        return {
+                            id: v.id,
+                            title: v.snippet.title,
+                            viewsNum: viewsVal,
+                            views: formatViewsLocal(viewsVal),
+                            likes: formatViewsLocal(likesVal),
+                            comments: formatViewsLocal(commentsVal),
+                            engagement: viewsVal > 0 ? ((likesVal + commentsVal) / viewsVal * 100).toFixed(1) + '%' : '—',
+                            platform: 'YouTube',
+                            type: 'video',
+                            thumbnail: v.snippet.thumbnails.high ? v.snippet.thumbnails.high.url : v.snippet.thumbnails.default.url,
+                            publishedAt: new Date(v.snippet.publishedAt)
+                        };
+                    });
                     topContent = [...topContent, ...videos];
                     
                     realTimeData = {

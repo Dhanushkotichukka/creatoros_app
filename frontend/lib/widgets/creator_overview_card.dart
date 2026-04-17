@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 
 class CreatorOverviewCard extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -22,14 +23,15 @@ class CreatorOverviewCard extends StatelessWidget {
 
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final r = Responsive.of(context);
 
     return Card(
       elevation: 0.5,
       shadowColor: Colors.black.withOpacity(0.05),
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(r.value(mobile: 16.0, tablet: 20.0, web: 24.0)),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(r.cardRadius + 8),
           color: isDark ? theme.cardColor : Colors.white,
         ),
         child: Column(
@@ -37,43 +39,49 @@ class CreatorOverviewCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(color: theme.colorScheme.primary.withOpacity(0.2), width: 2),
-                      ),
-                      child: CircleAvatar(
-                        radius: 28,
-                        backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
-                        backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                        child: avatarUrl == null
-                            ? Icon(Icons.person, color: theme.colorScheme.primary, size: 28)
-                            : null,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Welcome back,', style: theme.textTheme.bodySmall),
-                        Text(
-                          channelName,
-                          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, color: theme.colorScheme.primary),
-                          overflow: TextOverflow.ellipsis,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: theme.colorScheme.primary.withOpacity(0.2), width: 2),
                         ),
-                      ],
-                    ),
-                  ],
+                        child: CircleAvatar(
+                          radius: 28,
+                          backgroundColor: theme.colorScheme.primary.withOpacity(0.1),
+                          backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                          child: avatarUrl == null
+                              ? Icon(Icons.person, color: theme.colorScheme.primary, size: 28)
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Welcome back,', style: theme.textTheme.bodySmall),
+                            Text(
+                              channelName,
+                              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, color: theme.colorScheme.primary),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
                       '${data['totalViews'] ?? '0'} Views',
-                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, fontSize: 24),
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, fontSize: 22),
                     ),
                     Text('Total Reach', style: theme.textTheme.bodySmall),
                   ],

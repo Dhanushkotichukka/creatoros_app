@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../utils/app_colors.dart';
 
 class PlatformAnalyticsSlider extends StatelessWidget {
   final List<dynamic> platforms;
@@ -85,15 +86,16 @@ class _PlatformCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = Theme.of(context).extension<AppColors>()!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: 160,
       margin: const EdgeInsets.only(right: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+        color: c.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.white12 : Colors.grey[200]!),
+        border: Border.all(color: c.border),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
@@ -123,7 +125,7 @@ class _PlatformCard extends StatelessWidget {
           ),
           const Spacer(),
           Text(views, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          Text(subText, style: TextStyle(fontSize: 11, color: isDark ? Colors.grey[400] : Colors.grey[600])),
+          Text(subText, style: TextStyle(fontSize: 11, color: c.textSecondary)),
         ],
       ),
     );
@@ -135,13 +137,13 @@ class _AddPlatformCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final c = Theme.of(context).extension<AppColors>()!;
     return Container(
       width: 120,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
-        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[300]!),
-        color: isDark ? Colors.grey[950] : Colors.grey[50],
+        border: Border.all(color: c.border),
+        color: c.secondary.withOpacity(0.3),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -163,58 +165,64 @@ class _ConnectPlatformCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final c = Theme.of(context).extension<AppColors>()!;
     IconData iconData;
     switch (name.toLowerCase()) {
-      case 'youtube': iconData = Icons.play_circle_fill; break;
-      case 'instagram': iconData = Icons.camera_alt; break;
-      case 'linkedin': iconData = Icons.business; break;
-      default: iconData = Icons.public;
+      case 'youtube':   iconData = Icons.play_circle_fill; break;
+      case 'instagram': iconData = Icons.camera_alt;       break;
+      case 'linkedin':  iconData = Icons.business;         break;
+      default:          iconData = Icons.public;
     }
 
     return Container(
       width: 160,
       margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+        color: c.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isDark ? Colors.grey[800]! : Colors.grey[200]!),
+        border: Border.all(color: c.border),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(iconData, color: Colors.grey, size: 28),
-          const SizedBox(height: 8),
+          Icon(iconData, color: Colors.grey, size: 22),
+          const SizedBox(height: 4),
           Text(
             'Connect $name',
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.grey),
             textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          const Spacer(),
-          ElevatedButton(
-            onPressed: () {
-              if (name == 'YouTube') ApiService.loginWithYouTube();
-              if (name == 'Instagram') ApiService.loginWithMeta();
-              if (name == 'LinkedIn') ApiService.loginWithLinkedIn();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueAccent.withOpacity(0.2),
-              foregroundColor: Colors.blueAccent,
-              elevation: 0,
-              minimumSize: const Size(100, 30),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 28,
+            child: ElevatedButton(
+              onPressed: () {
+                if (name == 'YouTube')   ApiService.loginWithYouTube();
+                if (name == 'Instagram') ApiService.loginWithMeta();
+                if (name == 'LinkedIn')  ApiService.loginWithLinkedIn();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blueAccent.withOpacity(0.15),
+                foregroundColor: Colors.blueAccent,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                minimumSize: const Size(80, 28),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: const TextStyle(fontSize: 11),
+              ),
+              child: const Text('Connect'),
             ),
-            child: const Text('Connect', style: TextStyle(fontSize: 12)),
           ),
         ],
       ),
     );
   }
 }
+

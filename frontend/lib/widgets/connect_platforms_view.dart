@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../utils/app_colors.dart';
 import 'package:provider/provider.dart';
 import '../providers/view_state_provider.dart';
 
@@ -203,20 +204,19 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> with Widget
     final bool isConnected = status['connected'] ?? false;
     final String? accountName = status['name'];
     final String? accountAvatar = status['avatar'];
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final c = Theme.of(context).extension<AppColors>()!;
 
     return Container(
       width: 320,
       height: 360,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF141414) : Colors.white,
+        color: c.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: isConnected ? color.withOpacity(0.5) : (isDark ? Colors.grey[900]! : Colors.grey[200]!)),
-        boxShadow: isConnected 
-            ? [BoxShadow(color: color.withOpacity(0.1), blurRadius: 20, spreadRadius: 2)] 
-            : [BoxShadow(color: Colors.black.withOpacity(isDark ? 0 : 0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        border: Border.all(color: isConnected ? color.withOpacity(0.5) : c.border),
+        boxShadow: isConnected
+            ? [BoxShadow(color: color.withOpacity(0.1), blurRadius: 20, spreadRadius: 2)]
+            : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -250,7 +250,7 @@ class _ConnectPlatformsViewState extends State<ConnectPlatformsView> with Widget
             ]
           ),
           const SizedBox(height: 20),
-          Text(title, style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(title, style: TextStyle(color: c.textPrimary, fontSize: 22, fontWeight: FontWeight.bold)),
           if (isConnected && accountName != null)
             Padding(
               padding: const EdgeInsets.only(top: 4),

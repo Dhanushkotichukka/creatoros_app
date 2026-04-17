@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../utils/app_colors.dart';
 
 class RealTimeDataCard extends StatelessWidget {
   final Map<String, dynamic>? data;
@@ -19,12 +20,14 @@ class RealTimeDataCard extends StatelessWidget {
     final double maxVal = hourlyViews.reduce((a, b) => a > b ? a : b);
     final List<dynamic> trendingVideos = data!['trendingVideos'] ?? [];
 
+    final c = Theme.of(context).extension<AppColors>()!;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1A1A),
+        color: c.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey[800]!),
+        border: Border.all(color: c.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -37,7 +40,7 @@ class RealTimeDataCard extends StatelessWidget {
             ]
           ),
           const SizedBox(height: 12),
-          Text('$totalViews48h Views', style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          Text('$totalViews48h Views', style: TextStyle(color: c.textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
           
           // Hourly Bar Graph
@@ -59,33 +62,33 @@ class RealTimeDataCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-               Text('24h ago', style: TextStyle(color: Colors.grey, fontSize: 10)),
-               Text('Now', style: TextStyle(color: Colors.grey, fontSize: 10)),
+               Text('24h ago', style: TextStyle(color: c.textSecondary, fontSize: 10)),
+               Text('Now',    style: TextStyle(color: c.textSecondary, fontSize: 10)),
             ]
           ),
           
           const SizedBox(height: 24),
-          const Divider(color: Colors.white10),
+          Divider(color: c.border),
           const SizedBox(height: 16),
           
           // Live Video Activity
-          const Text('Currently Trending', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+          Text('Currently Trending', style: TextStyle(color: c.textSecondary, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           if (trendingVideos.isEmpty)
-             const Text('No active trending loops detected.', style: TextStyle(color: Colors.white54)),
+             Text('No active trending loops detected.', style: TextStyle(color: c.textSecondary)),
           ...trendingVideos.map((v) => Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
-            child: _buildLiveItem(v['thumbnail'] ?? '', v['title'] ?? 'Unknown', v['subtitle'] ?? '0 views this hour'),
+            child: _buildLiveItem(v['thumbnail'] ?? '', v['title'] ?? 'Unknown', v['subtitle'] ?? '0 views this hour', c),
           )),
         ],
       )
     );
   }
 
-  Widget _buildLiveItem(String thumb, String title, String subtitle) {
+  Widget _buildLiveItem(String thumb, String title, String subtitle, AppColors c) {
     return Row(
       children: [
         ClipRRect(
@@ -95,11 +98,11 @@ class RealTimeDataCard extends StatelessWidget {
             width: 50,
             height: 30,
             fit: BoxFit.cover,
-            errorBuilder: (c, e, s) => Container(
+            errorBuilder: (ctx, e, s) => Container(
               width: 50,
               height: 30,
-              decoration: BoxDecoration(color: Colors.grey[800], borderRadius: BorderRadius.circular(4)),
-              child: const Icon(Icons.play_arrow, size: 16, color: Colors.white54),
+              decoration: BoxDecoration(color: c.secondary, borderRadius: BorderRadius.circular(4)),
+              child: Icon(Icons.play_arrow, size: 16, color: c.textSecondary),
             ),
           ),
         ),
@@ -108,7 +111,7 @@ class RealTimeDataCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+              Text(title,    style: TextStyle(color: c.textPrimary,   fontSize: 13, fontWeight: FontWeight.bold)),
               Text(subtitle, style: const TextStyle(color: Colors.green, fontSize: 11)),
             ],
           )

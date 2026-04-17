@@ -155,6 +155,29 @@ class ApiService {
     }
   }
 
+  static Future<void> deleteStorageFile(String fileName, String storage) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/api/media/delete'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'fileName': fileName, 'storage': storage}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete file: ${response.body}');
+    }
+  }
+
+  static Future<String> getStorageDownloadUrl(String fileName, String storage) async {
+    final uri = Uri.parse('$baseUrl/api/media/download-url')
+        .replace(queryParameters: {'fileName': fileName, 'storage': storage});
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['url'];
+    } else {
+      throw Exception('Failed to get download URL');
+    }
+  }
+
+
   // --- PLATFORM STATUS & DISCONNECT ---
   static Future<Map<String, dynamic>> getPlatformStatuses() async {
     final response = await http.get(Uri.parse('$baseUrl/api/analytics/platforms/status'));

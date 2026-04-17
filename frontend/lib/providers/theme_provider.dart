@@ -1,12 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/app_colors.dart';
+
+/// The three appearance modes supported by CreatorOS.
+enum AppMode { light, dark, ai }
 
 class ThemeProvider extends ChangeNotifier {
-  static const String _themeKey = 'theme_mode';
-  ThemeMode _mode = ThemeMode.dark;
+  static const String _themeKey = 'app_mode';
 
-  ThemeMode get mode => _mode;
-  bool get isDark => _mode == ThemeMode.dark;
+  AppMode _appMode = AppMode.dark;
+
+  AppMode get appMode => _appMode;
+
+  /// Convenience helpers used by existing widgets that check `isDark`.
+  bool get isDark  => _appMode == AppMode.dark || _appMode == AppMode.ai;
+  bool get isLight => _appMode == AppMode.light;
+  bool get isAI    => _appMode == AppMode.ai;
+
+  /// The Flutter ThemeMode fed to MaterialApp.
+  ThemeMode get mode {
+    switch (_appMode) {
+      case AppMode.light: return ThemeMode.light;
+      case AppMode.dark:  return ThemeMode.dark;
+      case AppMode.ai:    return ThemeMode.dark;
+    }
+  }
 
   ThemeProvider() {
     _loadTheme();
@@ -14,79 +32,82 @@ class ThemeProvider extends ChangeNotifier {
 
   Future<void> _loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDarkSaved = prefs.getBool(_themeKey) ?? true; // Default to dark
-    _mode = isDarkSaved ? ThemeMode.dark : ThemeMode.light;
+    final saved = prefs.getString(_themeKey) ?? 'dark';
+    _appMode = _modeFromString(saved);
     notifyListeners();
   }
 
-  void toggle() async {
-    _mode = isDark ? ThemeMode.light : ThemeMode.dark;
-    notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_themeKey, isDark);
+  AppMode _modeFromString(String s) {
+    switch (s) {
+      case 'light': return AppMode.light;
+      case 'ai':    return AppMode.ai;
+      default:      return AppMode.dark;
+    }
   }
 
-  void setDark() async {
-    _mode = ThemeMode.dark;
-    notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_themeKey, true);
-  }
-
-  void setLight() async {
-    _mode = ThemeMode.light;
+  Future<void> setMode(AppMode mode) async {
+    _appMode = mode;
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_themeKey, false);
+    await prefs.setString(_themeKey, mode.name);
   }
 
-  // ────────────────── LIGHT THEME (Veselty Inspired) ──────────────────
+  void setLight() => setMode(AppMode.light);
+  void setDark()  => setMode(AppMode.dark);
+  void setAI()    => setMode(AppMode.ai);
+
+  void toggle() => setMode(_appMode == AppMode.light ? AppMode.dark : AppMode.light);
+
+  // ── LIGHT THEME ─────────────────────────────────────────────────────────────
   static ThemeData get lightTheme {
-    const orange = Color(0xFFF16E00);
-    const bg = Color(0xFFF8F9FA);
-    const surface = Color(0xFFFFFFFF);
-    const textPrimary = Color(0xFF1A1A1A);
-    const textSecondary = Color(0xFF71717A);
-    const border = Color(0xFFE2E8F0);
+    // Inline the palette values — no const access on object fields
+    const bgColor          = Color(0xFFF8FAFC);
+    const surfaceColor     = Color(0xFFFFFFFF);
+    const primaryColor     = Color(0xFFFF6B00);
+    const secondaryColor   = Color(0xFFFFE8D6);
+    const textPrimaryColor = Color(0xFF0F172A);
+    const textSecColor     = Color(0xFF64748B);
+    const borderColor      = Color(0xFFE2E8F0);
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      scaffoldBackgroundColor: bg,
+      scaffoldBackgroundColor: bgColor,
+      extensions: <ThemeExtension<dynamic>>[AppColors.light],
       colorScheme: const ColorScheme.light(
-        primary: orange,
-        secondary: orange,
-        surface: surface,
-        onSurface: textPrimary,
-        outline: border,
+        primary:   primaryColor,
+        secondary: primaryColor,
+        surface:   surfaceColor,
+        onSurface: textPrimaryColor,
+        outline:   borderColor,
       ),
       fontFamily: 'Inter',
       appBarTheme: const AppBarTheme(
-        backgroundColor: surface,
-        foregroundColor: textPrimary,
+        backgroundColor:  surfaceColor,
+        foregroundColor:  textPrimaryColor,
         elevation: 0,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          color: textPrimary,
+          color: textPrimaryColor,
           fontSize: 20,
           fontWeight: FontWeight.w800,
           fontFamily: 'Inter',
         ),
-        iconTheme: IconThemeData(color: textPrimary),
+        iconTheme: IconThemeData(color: textPrimaryColor),
       ),
       cardTheme: CardThemeData(
-        color: surface,
+        color: surfaceColor,
         elevation: 0.5,
-        shadowColor: Colors.black.withOpacity(0.05),
+        shadowColor: Color(0x0D000000),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
-          side: const BorderSide(color: border, width: 1),
+          side: BorderSide(color: borderColor, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: orange,
+          backgroundColor: primaryColor,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 0,
@@ -95,75 +116,75 @@ class ThemeProvider extends ChangeNotifier {
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: surface,
-        selectedItemColor: orange,
-        unselectedItemColor: textSecondary,
+        backgroundColor:     surfaceColor,
+        selectedItemColor:   primaryColor,
+        unselectedItemColor: textSecColor,
         elevation: 8,
         type: BottomNavigationBarType.fixed,
       ),
       textTheme: const TextTheme(
-        displayLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w800, fontSize: 32),
-        displayMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w700, fontSize: 28),
-        titleLarge: TextStyle(color: textPrimary, fontWeight: FontWeight.w800, fontSize: 22),
-        titleMedium: TextStyle(color: textPrimary, fontWeight: FontWeight.w700, fontSize: 18),
-        bodyLarge: TextStyle(color: textPrimary, fontSize: 16),
-        bodyMedium: TextStyle(color: textPrimary, fontSize: 14),
-        bodySmall: TextStyle(color: textSecondary, fontSize: 12),
+        displayLarge:  TextStyle(color: textPrimaryColor, fontWeight: FontWeight.w800, fontSize: 32),
+        displayMedium: TextStyle(color: textPrimaryColor, fontWeight: FontWeight.w700, fontSize: 28),
+        titleLarge:    TextStyle(color: textPrimaryColor, fontWeight: FontWeight.w800, fontSize: 22),
+        titleMedium:   TextStyle(color: textPrimaryColor, fontWeight: FontWeight.w700, fontSize: 18),
+        bodyLarge:     TextStyle(color: textPrimaryColor, fontSize: 16),
+        bodyMedium:    TextStyle(color: textPrimaryColor, fontSize: 14),
+        bodySmall:     TextStyle(color: textSecColor,     fontSize: 12),
       ),
-      dividerColor: border,
-      iconTheme: const IconThemeData(color: textSecondary),
+      dividerColor: borderColor,
+      iconTheme: const IconThemeData(color: textSecColor),
     );
   }
 
-  // ────────────────── DARK THEME ──────────────────
+  // ── DARK THEME ───────────────────────────────────────────────────────────────
   static ThemeData get darkTheme {
-    const bg = Color(0xFF0F0F1A);
-    const surface = Color(0xFF1A1A2E);
-    const primary = Color(0xFF6C63FF);
-    const orange = Color(0xFFFF6A3D);
-    const textPrimary = Color(0xFFFFFFFF);
-    const textSecondary = Color(0xFFA0A0B0);
-    const border = Color(0x14FFFFFF); // rgba(255,255,255,0.08)
+    const bgColor          = Color(0xFF0B0B0B);
+    const surfaceColor     = Color(0xFF1A1A1A);
+    const primaryColor     = Color(0xFFFF6B00);
+    const textPrimaryColor = Color(0xFFFFFFFF);
+    const textSecColor     = Color(0xFFA1A1AA);
+    const borderColor      = Color(0xFF27272A);
 
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: bg,
+      scaffoldBackgroundColor: bgColor,
+      extensions: <ThemeExtension<dynamic>>[AppColors.dark],
       colorScheme: const ColorScheme.dark(
-        primary: primary,
-        secondary: orange,
-        surface: surface,
-        onSurface: textPrimary,
-        outline: border,
+        primary:   primaryColor,
+        secondary: primaryColor,
+        surface:   surfaceColor,
+        onSurface: textPrimaryColor,
+        outline:   borderColor,
       ),
       fontFamily: 'Inter',
       appBarTheme: const AppBarTheme(
-        backgroundColor: bg,
-        foregroundColor: textPrimary,
+        backgroundColor:   bgColor,
+        foregroundColor:   textPrimaryColor,
         elevation: 0,
-        shadowColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
+        shadowColor:       Colors.transparent,
+        surfaceTintColor:  Colors.transparent,
         titleTextStyle: TextStyle(
-          color: textPrimary,
+          color: textPrimaryColor,
           fontSize: 18,
           fontWeight: FontWeight.w700,
           fontFamily: 'Inter',
         ),
-        iconTheme: IconThemeData(color: textPrimary),
+        iconTheme: IconThemeData(color: textPrimaryColor),
       ),
       cardTheme: CardThemeData(
-        color: surface,
+        color: surfaceColor,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: border, width: 1),
+          side: BorderSide(color: borderColor, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: textPrimary,
+          backgroundColor: primaryColor,
+          foregroundColor: textPrimaryColor,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -171,21 +192,99 @@ class ThemeProvider extends ChangeNotifier {
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: surface,
-        selectedItemColor: orange,
-        unselectedItemColor: textSecondary,
+        backgroundColor:     surfaceColor,
+        selectedItemColor:   primaryColor,
+        unselectedItemColor: textSecColor,
         elevation: 0,
         type: BottomNavigationBarType.fixed,
       ),
       textTheme: const TextTheme(
-        bodyLarge: TextStyle(color: textPrimary, fontFamily: 'Inter'),
-        bodyMedium: TextStyle(color: textPrimary, fontFamily: 'Inter'),
-        bodySmall: TextStyle(color: textSecondary, fontFamily: 'Inter'),
-        titleLarge: TextStyle(color: textPrimary, fontFamily: 'Inter', fontWeight: FontWeight.w700),
-        titleMedium: TextStyle(color: textPrimary, fontFamily: 'Inter', fontWeight: FontWeight.w600),
+        bodyLarge:   TextStyle(color: textPrimaryColor, fontFamily: 'Inter'),
+        bodyMedium:  TextStyle(color: textPrimaryColor, fontFamily: 'Inter'),
+        bodySmall:   TextStyle(color: textSecColor,     fontFamily: 'Inter'),
+        titleLarge:  TextStyle(color: textPrimaryColor, fontFamily: 'Inter', fontWeight: FontWeight.w700),
+        titleMedium: TextStyle(color: textPrimaryColor, fontFamily: 'Inter', fontWeight: FontWeight.w600),
       ),
-      dividerColor: border,
-      iconTheme: const IconThemeData(color: textSecondary),
+      dividerColor: borderColor,
+      iconTheme: const IconThemeData(color: textSecColor),
+    );
+  }
+
+  // ── AI THEME ─────────────────────────────────────────────────────────────────
+  static ThemeData get aiTheme {
+    const bgColor          = Color(0xFF0F0F1A);
+    const surfaceColor     = Color(0x14FFFFFF); // rgba(255,255,255,0.08)
+    const primaryColor     = Color(0xFF7C3AED); // AI Purple
+    const secondaryColor   = Color(0xFF00F5D4); // AI Cyan
+    const accentColor      = Color(0xFFFF6B00); // Brand Orange
+    const textPrimaryColor = Color(0xFFFFFFFF);
+    const textSecColor     = Color(0xFF94A3B8);
+    const borderColor      = Color(0x1FFFFFFF); // rgba(255,255,255,0.12)
+
+    final aiColors = AppColors.ai;
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      scaffoldBackgroundColor: bgColor,
+      extensions: <ThemeExtension<dynamic>>[aiColors],
+      colorScheme: const ColorScheme.dark(
+        primary:   primaryColor,
+        secondary: secondaryColor,
+        surface:   bgColor,
+        onSurface: textPrimaryColor,
+        outline:   borderColor,
+      ),
+      fontFamily: 'Inter',
+      appBarTheme: const AppBarTheme(
+        backgroundColor:   bgColor,
+        foregroundColor:   textPrimaryColor,
+        elevation: 0,
+        shadowColor:       Colors.transparent,
+        surfaceTintColor:  Colors.transparent,
+        titleTextStyle: TextStyle(
+          color: textPrimaryColor,
+          fontSize: 18,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'Inter',
+        ),
+        iconTheme: IconThemeData(color: textPrimaryColor),
+      ),
+      cardTheme: const CardThemeData(
+        color: surfaceColor,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+          side: BorderSide(color: borderColor, width: 1),
+        ),
+        margin: EdgeInsets.zero,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primaryColor,
+          foregroundColor: textPrimaryColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontFamily: 'Inter'),
+        ),
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor:     bgColor,
+        selectedItemColor:   accentColor, // orange stays consistent
+        unselectedItemColor: textSecColor,
+        elevation: 0,
+        type: BottomNavigationBarType.fixed,
+      ),
+      textTheme: const TextTheme(
+        bodyLarge:   TextStyle(color: textPrimaryColor, fontFamily: 'Inter'),
+        bodyMedium:  TextStyle(color: textPrimaryColor, fontFamily: 'Inter'),
+        bodySmall:   TextStyle(color: textSecColor,     fontFamily: 'Inter'),
+        titleLarge:  TextStyle(color: textPrimaryColor, fontFamily: 'Inter', fontWeight: FontWeight.w700),
+        titleMedium: TextStyle(color: textPrimaryColor, fontFamily: 'Inter', fontWeight: FontWeight.w600),
+      ),
+      dividerColor: borderColor,
+      iconTheme: const IconThemeData(color: textSecColor),
     );
   }
 }

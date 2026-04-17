@@ -2,39 +2,41 @@ import 'package:flutter/material.dart';
 
 class StatGrid extends StatelessWidget {
   final Map<String, dynamic> data;
-
   const StatGrid({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: MediaQuery.of(context).size.width > 900 ? 3 : 1,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 20,
-      mainAxisSpacing: 20,
-      childAspectRatio: 2.2,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        StatCard(
-          title: 'Total Views',
-          value: data['totalViews']?.toString() ?? '1.2M',
-          trend: '+12.5%',
-          isPositive: true,
-          icon: Icons.remove_red_eye_outlined,
+        Expanded(
+          child: StatCard(
+            title: 'Total Views',
+            value: data['totalViews']?.toString() ?? '0',
+            trend: '+12.5%',
+            isPositive: true,
+            icon: Icons.remove_red_eye_outlined,
+          ),
         ),
-        StatCard(
-          title: 'Active followers',
-          value: data['subscribers']?.toString() ?? '27,064',
-          trend: '+8.2%',
-          isPositive: true,
-          icon: Icons.people_outline,
+        const SizedBox(width: 10),
+        Expanded(
+          child: StatCard(
+            title: 'Followers',
+            value: data['subscribers']?.toString() ?? '0',
+            trend: '+8.2%',
+            isPositive: true,
+            icon: Icons.people_outline,
+          ),
         ),
-        StatCard(
-          title: 'Total likes',
-          value: data['totalLikes']?.toString() ?? '16,568',
-          trend: '-2.4%',
-          isPositive: false,
-          icon: Icons.favorite_border,
+        const SizedBox(width: 10),
+        Expanded(
+          child: StatCard(
+            title: 'Total Likes',
+            value: data['totalLikes']?.toString() ?? '0',
+            trend: '-2.4%',
+            isPositive: false,
+            icon: Icons.favorite_border,
+          ),
         ),
       ],
     );
@@ -59,47 +61,88 @@ class StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final color = isPositive ? Colors.green : Colors.red;
+    final theme  = Theme.of(context);
+    final w      = MediaQuery.of(context).size.width;
+    // Card width ≈ (screenWidth - sidebar - padding) / 3
+    // On mobile (≈390px) each card is ~110px wide — use compact sizing
+    final bool compact = w < 700;
+    final color  = isPositive ? Colors.green : Colors.red;
 
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 10 : 18,
+          vertical:   compact ? 12 : 16,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // Title + icon row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(title, style: theme.textTheme.bodySmall),
-                Icon(icon, size: 20, color: Colors.grey),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: compact ? 10 : 12,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+                Icon(icon, size: compact ? 13 : 17, color: Colors.grey),
               ],
             ),
-            const SizedBox(height: 12),
+
+            SizedBox(height: compact ? 8 : 12),
+
+            // Value
+            Text(
+              value,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+                fontSize: compact ? 18 : 26,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+
+            SizedBox(height: compact ? 4 : 6),
+
+            // Trend badge + label
             Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(value, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900, fontSize: 28)),
-                const SizedBox(width: 8),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      trend,
-                      style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: compact ? 4 : 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    trend,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: compact ? 9 : 11,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text('vs last month', style: theme.textTheme.bodySmall?.copyWith(fontSize: 10)),
+
+            SizedBox(height: compact ? 4 : 6),
+
+            Text(
+              'vs last month',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontSize: compact ? 9 : 10,
+              ),
+            ),
           ],
         ),
       ),

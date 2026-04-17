@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/app_colors.dart';
 
 class ContentSection extends StatelessWidget {
   final String platform;
@@ -35,13 +36,14 @@ class ContentSection extends StatelessWidget {
 
     final latestVideo = sorted.isNotEmpty ? sorted.first : null;
 
+    final c = Theme.of(context).extension<AppColors>()!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
       elevation: isDark ? 1 : 2,
       shadowColor: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      color: isDark ? const Color(0xFF141414) : Colors.white,
+      color: c.surface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -115,9 +117,9 @@ class ContentSection extends StatelessWidget {
                 Text(
                   latestVideo != null ? (latestVideo['title'] ?? 'Untitled') : 'No recent $platform content found',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold, 
-                    fontSize: 14, 
-                    color: isDark ? Colors.white : Colors.black87
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: c.textPrimary,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
