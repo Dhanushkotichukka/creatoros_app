@@ -1,9 +1,6 @@
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:html' as html;
-// ignore: avoid_web_libraries_in_flutter
-import 'dart:ui_web' as ui;
-
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import '../utils/web_helper.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as p;
 import 'package:url_launcher/url_launcher.dart';
@@ -723,40 +720,25 @@ class _MediaViewerDialogState extends State<_MediaViewerDialog> {
   }
 
   void _registerHtmlElement() {
-    // Only register once per unique ID — Flutter throws if you register twice
-    try {
-      if (widget.fileType == 'video') {
-        ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
-          return html.VideoElement()
-            ..src = widget.url
-            ..controls = true
-            ..style.width = '100%'
-            ..style.height = '100%'
-            ..style.borderRadius = '12px'
-            ..autoplay = false;
-        });
-      } else if (widget.fileType == 'sound') {
-        ui.platformViewRegistry.registerViewFactory(_viewId, (int viewId) {
-          final div = html.DivElement()
-            ..style.display = 'flex'
-            ..style.alignItems = 'center'
-            ..style.justifyContent = 'center'
-            ..style.width = '100%'
-            ..style.height = '100%'
-            ..style.background = 'transparent';
+    registerWebViewFactory(_viewId, widget.url, widget.fileType);
+  }
 
-          final audio = html.AudioElement()
-            ..src = widget.url
-            ..controls = true
-            ..style.width = '90%';
-
-          div.append(audio);
-          return div;
-        });
-      }
-    } catch (_) {
-      // Already registered — safe to ignore
-    }
+  Widget _mobileMediaFallback(Color fileColor) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.video_camera_back_rounded, size: 64, color: fileColor.withOpacity(0.4)),
+        const SizedBox(height: 16),
+        const Text('In-app media playback is currently supported on Web.\nPlease click "Download" to open in supported app.', 
+          textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
+        const SizedBox(height: 24),
+        ElevatedButton.icon(
+          onPressed: widget.onDownload,
+          icon: const Icon(Icons.download_rounded),
+          label: const Text('Download / Open File'),
+        ),
+      ],
+    );
   }
 
   @override
@@ -881,6 +863,7 @@ class _MediaViewerDialogState extends State<_MediaViewerDialog> {
         );
 
       case 'video':
+        if (!kIsWeb) return _mobileMediaFallback(fileColor);
         return SizedBox(
           height: 420,
           child: HtmlElementView(viewType: _viewId),
@@ -903,10 +886,17 @@ class _MediaViewerDialogState extends State<_MediaViewerDialog> {
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 textAlign: TextAlign.center),
             const SizedBox(height: 20),
-            SizedBox(
-              height: 60,
-              child: HtmlElementView(viewType: _viewId),
-            ),
+            if (kIsWeb)
+              SizedBox(
+                height: 60,
+                child: HtmlElementView(viewType: _viewId),
+              )
+            else
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text('Audio preview requires Web. Please download file to listen.', 
+                  style: TextStyle(fontStyle: FontStyle.italic), textAlign: TextAlign.center),
+              ),
           ],
         );
 

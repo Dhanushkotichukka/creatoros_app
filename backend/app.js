@@ -46,6 +46,7 @@ app.use(express.json());
 // Routes
 const youtubeRoutes = require('./routes/youtubeRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const scriptRoutes = require('./routes/scriptRoutes');
 const metaRoutes = require('./routes/metaRoutes');
 const linkedinRoutes = require('./routes/linkedinRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
@@ -54,6 +55,7 @@ const publishRoutes = require('./routes/publishRoutes');
 
 console.log('Setting up routes...');
 app.use('/auth/youtube', youtubeRoutes);
+app.use('/api/ai/scripts', scriptRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/auth/meta', metaRoutes);
 app.use('/auth/linkedin', linkedinRoutes); 
@@ -71,8 +73,11 @@ app.get('/', (req, res) => {
 console.log('Connecting to database...');
 syncDatabase().then(() => {
     console.log('Starting server...');
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log(`Server is running on port ${PORT} (0.0.0.0)`);
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT} (Listening on all interfaces)`);
+        
+        // Force the event loop to stay alive just in case something is prematurely closing the server handle
+        setInterval(() => {}, 1000 * 60 * 60);
     });
 }).catch(err => {
     console.error('Database sync failed:', err);

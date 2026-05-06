@@ -1,11 +1,16 @@
 {
-  "timestamp": "2026-04-12T03:20:58.446Z",
+  "timestamp": "2026-04-24T17:01:13.747Z",
   "results": [
     {
       "success": true,
+      "platform": "YouTube",
+      "id": "JTeJibzEf1c"
+    },
+    {
+      "success": true,
       "platform": "Instagram",
-      "id": "18030616751799697",
-      "postType": "POST"
+      "id": "18078428225409910",
+      "postType": "REEL"
     }
   ]
 }

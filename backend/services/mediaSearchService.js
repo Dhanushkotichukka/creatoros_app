@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const UNSPLASH_API_KEY = process.env.UNSPLASH_API_KEY;
+const UNSPLASH_API_KEY = process.env.UNSPLASH_ACCESS_KEY;
 const PEXELS_API_KEY = process.env.PEXELS_API_KEY;
 const PIXABAY_API_KEY = process.env.PIXABAY_API_KEY;
 
@@ -89,7 +89,7 @@ const searchPixabay = async (query, type = 'image', page = 1, perPage = 15) => {
       source: 'pixabay',
       id: item.id.toString(),
       url: isVideo ? item.videos.large.url : item.largeImageURL,
-      thumbnail: isVideo ? item.picture_id : item.previewURL, 
+      thumbnail: isVideo ? (item.videos?.medium?.thumbnail ?? item.previewURL) : item.previewURL, 
       type: type,
       author: item.user,
       authorUrl: `https://pixabay.com/users/${item.user}-${item.user_id}/`

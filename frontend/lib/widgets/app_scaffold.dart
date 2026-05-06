@@ -18,7 +18,7 @@ class AppScaffold extends StatelessWidget {
     _NavItem(label: 'Analytics', icon: Icons.analytics_outlined, activeIcon: Icons.analytics),
     _NavItem(label: 'Add',       icon: Icons.add_circle_outline, activeIcon: Icons.add_circle, isAction: true),
     _NavItem(label: 'Hub',       icon: Icons.hub_outlined,       activeIcon: Icons.hub),
-    _NavItem(label: 'Community', icon: Icons.people_outline,     activeIcon: Icons.people),
+    _NavItem(label: 'AI',        icon: Icons.smart_toy_outlined, activeIcon: Icons.smart_toy),
   ];
 
   @override
@@ -203,34 +203,49 @@ class _WebLayoutState extends State<_WebLayout> {
               children: [
                 const SizedBox(height: 32),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: _isCollapsed ? 0 : 24),
+                  padding: EdgeInsets.symmetric(horizontal: _isCollapsed ? 0 : 12),
                   child: Row(
                     mainAxisAlignment: _isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
                     children: [
                       Container(
-                        width: 36,
-                        height: 36,
+                        width: 72,
+                        height: 72,
                         decoration: BoxDecoration(
-                          color: c.primary,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.bolt, color: Colors.white, size: 20),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback if the logo file hasn't been saved yet
+                            return Container(
+                              color: c.primary,
+                              child: const Icon(Icons.bolt, color: Colors.white, size: 20),
+                            );
+                          },
+                        ),
                       ),
                       if (!_isCollapsed) ...[
                         const SizedBox(width: 12),
-                        Text(
-                          'CreatorOS',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            color: c.textPrimary,
-                            letterSpacing: -0.5,
+                        Expanded(
+                          child: Text(
+                            'CreatorOS',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: c.textPrimary,
+                              letterSpacing: -0.5,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        const Spacer(),
                       ],
                       if (!_isCollapsed)
                         IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
                           icon: Icon(Icons.menu_open, color: c.textPrimary, size: 20),
                           onPressed: () => setState(() => _isCollapsed = !_isCollapsed),
                         ),
@@ -265,57 +280,85 @@ class _WebLayoutState extends State<_WebLayout> {
 
                   if (item.isAction) {
                     return Padding(
-                      padding: EdgeInsets.all(_isCollapsed ? 8.0 : 16.0),
-                      child: Container(
-                        height: 50,
-                        decoration: BoxDecoration(
-                          color: c.primary,
-                          borderRadius: BorderRadius.circular(_isCollapsed ? 25 : 16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: c.primary.withOpacity(0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: _isCollapsed
-                          ? Center(
-                              child: IconButton(
-                                icon: const Icon(Icons.add, color: Colors.white),
+                      padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: _isCollapsed ? 0 : 16.0),
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: _isCollapsed ? 44 : double.infinity,
+                          height: _isCollapsed ? 44 : 50,
+                          decoration: BoxDecoration(
+                            color: Colors.transparent,
+                            border: Border.all(color: c.primary, width: 2),
+                            borderRadius: BorderRadius.circular(_isCollapsed ? 22 : 16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: c.primary.withOpacity(0.4),
+                                blurRadius: 16,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: _isCollapsed
+                            ? IconButton(
+                                padding: EdgeInsets.zero,
+                                icon: Icon(Icons.add, color: c.primary),
+                                onPressed: () => widget.onTap(i),
+                              )
+                            : ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.transparent,
+                                  shadowColor: Colors.transparent,
+                                  foregroundColor: c.primary,
+                                  minimumSize: const Size(double.infinity, 50),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                icon: Icon(Icons.add, color: c.primary),
+                                label: Text(
+                                  'New Project',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: c.primary),
+                                ),
                                 onPressed: () => widget.onTap(i),
                               ),
-                            )
-                          : ElevatedButton.icon(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                foregroundColor: Colors.white,
-                                minimumSize: const Size(double.infinity, 50),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              icon: const Icon(Icons.add),
-                              label: const Text(
-                                'New Project',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              onPressed: () => widget.onTap(i),
+                        ),
+                      ),
+                    );
+                  }
+
+                  if (_isCollapsed) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: InkWell(
+                          onTap: () => widget.onTap(i),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: isSelected ? c.primary.withOpacity(0.1) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
                             ),
+                            child: Icon(
+                              isSelected ? item.activeIcon : item.icon,
+                              color: isSelected ? c.primary : c.textSecondary,
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   }
 
                   return Padding(
-                    padding: EdgeInsets.symmetric(horizontal: _isCollapsed ? 8 : 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                     child: ListTile(
-                      contentPadding: _isCollapsed ? const EdgeInsets.symmetric(horizontal: 8) : null,
                       leading: Icon(
                         isSelected ? item.activeIcon : item.icon,
                         color: isSelected ? c.primary : c.textSecondary,
                       ),
-                      title: _isCollapsed ? null : Text(
+                      title: Text(
                         item.label,
                         style: TextStyle(
                           color: isSelected ? c.primary : c.textSecondary,
@@ -365,11 +408,12 @@ class _ActionButton extends StatelessWidget {
           )
         : BoxDecoration(
             shape: BoxShape.circle,
-            color: c.primary,
+            color: Colors.transparent,
+            border: Border.all(color: c.primary, width: 2),
             boxShadow: [
               BoxShadow(
                 color: c.primary.withOpacity(0.4),
-                blurRadius: 12,
+                blurRadius: 16,
                 spreadRadius: 1,
               ),
             ],
@@ -379,7 +423,7 @@ class _ActionButton extends StatelessWidget {
       width: size,
       height: size,
       decoration: deco,
-      child: Icon(Icons.add, color: Colors.white, size: size * 0.5),
+      child: Icon(Icons.add, color: c.primaryGradient != null ? Colors.white : c.primary, size: size * 0.5),
     );
   }
 }

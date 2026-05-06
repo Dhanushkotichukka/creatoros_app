@@ -25,27 +25,27 @@ class AILabScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildSection(context, 'Image AI Tools', [
-                      _AIToolCard(title: 'AI Generate', icon: Icons.image, color: Colors.blue),
-                      _AIToolCard(title: 'Background Remove', icon: Icons.person_remove, color: Colors.blue),
-                      _AIToolCard(title: 'Enhance', icon: Icons.auto_fix_high, color: Colors.blue),
-                    ]),
-                    const SizedBox(height: 24),
-                    _buildSection(context, 'Video AI Tools', [
-                      _AIToolCard(title: 'Auto Captions', icon: Icons.closed_caption, color: Colors.purple),
-                      _AIToolCard(title: 'Smart Cut', icon: Icons.content_cut, color: Colors.purple),
-                      _AIToolCard(title: 'Color Grade', icon: Icons.color_lens, color: Colors.purple),
-                    ]),
-                    const SizedBox(height: 24),
-                    _buildSection(context, 'Text AI Tools', [
-                      _AIToolCard(title: 'Script Writer', icon: Icons.edit_document, color: Colors.green),
-                      _AIToolCard(title: 'Hashtags Generator', icon: Icons.tag, color: Colors.green),
-                    ]),
-                    const SizedBox(height: 24),
-                    _buildSection(context, 'Voice AI Tools', [
-                      _AIToolCard(title: 'Voice Clone', icon: Icons.mic, color: Colors.orange),
-                      _AIToolCard(title: 'Noise Reduction', icon: Icons.hearing_disabled, color: Colors.orange),
-                    ]),
+                      _buildSection(context, 'Image AI Tools', [
+                        _AIToolCard(title: 'AI Generate', icon: Icons.image, color: Colors.blue, onTap: () => _showComingSoon(context, 'AI Generate')),
+                        _AIToolCard(title: 'Background Remove', icon: Icons.person_remove, color: Colors.blue, onTap: () => _showComingSoon(context, 'Background Remove')),
+                        _AIToolCard(title: 'Enhance', icon: Icons.auto_fix_high, color: Colors.blue, onTap: () => _showComingSoon(context, 'Enhance Image')),
+                      ]),
+                      const SizedBox(height: 24),
+                      _buildSection(context, 'Video AI Tools', [
+                        _AIToolCard(title: 'Auto Captions', icon: Icons.closed_caption, color: Colors.purple, onTap: () => _showComingSoon(context, 'Auto Captions')),
+                        _AIToolCard(title: 'Smart Cut', icon: Icons.content_cut, color: Colors.purple, onTap: () => _showComingSoon(context, 'Smart Cut')),
+                        _AIToolCard(title: 'Color Grade', icon: Icons.color_lens, color: Colors.purple, onTap: () => _showComingSoon(context, 'Color Grade')),
+                      ]),
+                      const SizedBox(height: 24),
+                      _buildSection(context, 'Text AI Tools', [
+                        _AIToolCard(title: 'Script Writer', icon: Icons.edit_document, color: Colors.green, onTap: () => Navigator.pushNamed(context, '/ai/script_workshop', arguments: {'topic': 'New AI Script'})),
+                        _AIToolCard(title: 'Hashtags Generator', icon: Icons.tag, color: Colors.green, onTap: () => _showComingSoon(context, 'Hashtags Generator')),
+                      ]),
+                      const SizedBox(height: 24),
+                      _buildSection(context, 'Voice AI Tools', [
+                        _AIToolCard(title: 'Voice Clone', icon: Icons.mic, color: Colors.orange, onTap: () => _showComingSoon(context, 'Voice Clone')),
+                        _AIToolCard(title: 'Noise Reduction', icon: Icons.hearing_disabled, color: Colors.orange, onTap: () => _showComingSoon(context, 'Noise Reduction')),
+                      ]),
                   ],
                 ),
               ),
@@ -84,7 +84,10 @@ class AILabScreen extends StatelessWidget {
                     ),
                     child: IconButton(
                       icon: const Icon(Icons.send, color: Colors.white),
-                      onPressed: () {},
+                      onPressed: () {
+                        // Open full chat screen
+                        Navigator.pushNamed(context, '/ai-chat');
+                      },
                     ),
                   ),
                 ],
@@ -93,6 +96,12 @@ class AILabScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _showComingSoon(BuildContext context, String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$feature coming soon!'), duration: const Duration(seconds: 2)),
     );
   }
 
@@ -121,30 +130,34 @@ class _AIToolCard extends StatelessWidget {
   final String title;
   final IconData icon;
   final Color color;
+  final VoidCallback onTap;
 
-  const _AIToolCard({required this.title, required this.icon, required this.color});
+  const _AIToolCard({required this.title, required this.icon, required this.color, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 100,
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 12),
-          Text(
-            title, 
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-          ),
-        ],
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 100,
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Theme.of(context).dividerColor),
+        ),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 32),
+            const SizedBox(height: 12),
+            Text(
+              title, 
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
       ),
     );
   }

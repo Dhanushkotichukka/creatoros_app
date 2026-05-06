@@ -22,6 +22,7 @@ class CreatorHealth extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = _state;
+    final theme = Theme.of(context);
     return Row(
       children: [
         Container(
@@ -31,7 +32,7 @@ class CreatorHealth extends StatelessWidget {
             color: state.backgroundColor,
             shape: BoxShape.circle,
             border: Border.all(
-              color: state.backgroundColor.withValues(alpha: 0.5),
+              color: state.backgroundColor.withOpacity(0.5),
               width: 1,
             ),
           ),
@@ -42,25 +43,29 @@ class CreatorHealth extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '$streakDays Day Streak',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$streakDays Day Streak',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-            Text(
-              state.message,
-              style: const TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
+              Text(
+                state.message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurface.withOpacity(0.6),
+                  fontSize: 11,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ],
     );

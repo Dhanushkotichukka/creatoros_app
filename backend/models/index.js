@@ -3,6 +3,7 @@ const User = require('./User');
 const Token = require('./Token');
 const Content = require('./Content');
 const Analytics = require('./Analytics');
+const Script = require('./Script');
 
 const syncDatabase = async () => {
     try {
@@ -23,5 +24,6 @@ module.exports = {
     User,
     Token,
     Content,
-    Analytics
+    Analytics,
+    Script
 };

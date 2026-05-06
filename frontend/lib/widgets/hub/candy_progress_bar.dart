@@ -33,9 +33,10 @@ class CandyProgressBar extends StatelessWidget {
             ),
             boxShadow: [
               BoxShadow(
-                color: primaryAccent.withOpacity(0.3),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+                color: primaryAccent.withOpacity(0.4),
+                blurRadius: 10,
+                spreadRadius: 1,
+                offset: const Offset(0, 3),
               )
             ],
           ),

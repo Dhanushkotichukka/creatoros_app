@@ -39,7 +39,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
     _scrollToBottom();
 
     try {
-      final response = await ApiService.generateScript(text);
+      final response = await ApiService.generateAIChat(text);
       if (!mounted) return;
       setState(() {
         _messages.add({'role': 'ai', 'text': response});

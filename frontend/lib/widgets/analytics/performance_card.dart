@@ -38,8 +38,9 @@ class _PerformanceCardState extends State<PerformanceCard> {
                     Text('Overall Health', style: theme.textTheme.bodySmall),
                     const SizedBox(height: 12),
                     CreatorHealth(
-                      engagementRate: (widget.data['engagementRate'] ?? 0.06).toDouble(),
-                      streakDays: widget.data['streak'] ?? 5,
+                      // engagementRate may arrive as '4.80' (string %) or 0.048 (double fraction)
+                      engagementRate: _parseEngagementRate(widget.data['engagementRate']),
+                      streakDays: _parseInt(widget.data['streak'], 5),
                     ),
                   ],
                 ),
@@ -59,6 +60,26 @@ class _PerformanceCardState extends State<PerformanceCard> {
         ),
       ),
     );
+  }
+
+  // ── Safe parsers ──────────────────────────────────────────────────────────
+  static double _parseEngagementRate(dynamic v) {
+    if (v == null) return 0.04;
+    if (v is num) {
+      final d = v.toDouble();
+      // >1 means it's already a percentage (e.g. 4.8); convert to fraction
+      return d > 1 ? d / 100.0 : d;
+    }
+    final s = v.toString().replaceAll('%', '').trim();
+    final parsed = double.tryParse(s) ?? 4.0;
+    return parsed > 1 ? parsed / 100.0 : parsed;
+  }
+
+  static int _parseInt(dynamic v, int fallback) {
+    if (v == null) return fallback;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString()) ?? fallback;
   }
 
   Widget _buildMiniGraph() {

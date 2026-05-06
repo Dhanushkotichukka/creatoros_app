@@ -61,13 +61,13 @@ class ThemeProvider extends ChangeNotifier {
   // ── LIGHT THEME ─────────────────────────────────────────────────────────────
   static ThemeData get lightTheme {
     // Inline the palette values — no const access on object fields
-    const bgColor          = Color(0xFFF8FAFC);
-    const surfaceColor     = Color(0xFFFFFFFF);
-    const primaryColor     = Color(0xFFFF6B00);
-    const secondaryColor   = Color(0xFFFFE8D6);
-    const textPrimaryColor = Color(0xFF0F172A);
-    const textSecColor     = Color(0xFF64748B);
-    const borderColor      = Color(0xFFE2E8F0);
+    const bgColor          = Color(0xFFFFFFFF); // White Background
+    const surfaceColor     = Color(0xFFFFFFFF); // White Surface
+    const primaryColor     = Color(0xFFF16E00); // Main Orange
+    const secondaryColor   = Color(0xFF000000); // Deep Black
+    const textPrimaryColor = Color(0xFF000000); // Deep Black
+    const textSecColor     = Color(0xFF757575); // Medium Grey
+    const borderColor      = Color(0xFFDDDDDD); // Light Grey Border
 
     return ThemeData(
       useMaterial3: true,
@@ -83,7 +83,7 @@ class ThemeProvider extends ChangeNotifier {
       ),
       fontFamily: 'Inter',
       appBarTheme: const AppBarTheme(
-        backgroundColor:  surfaceColor,
+        backgroundColor:  bgColor,
         foregroundColor:  textPrimaryColor,
         elevation: 0,
         centerTitle: false,
@@ -97,10 +97,9 @@ class ThemeProvider extends ChangeNotifier {
       ),
       cardTheme: CardThemeData(
         color: surfaceColor,
-        elevation: 0.5,
-        shadowColor: Color(0x0D000000),
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: borderColor, width: 1),
         ),
         margin: EdgeInsets.zero,
@@ -109,10 +108,10 @@ class ThemeProvider extends ChangeNotifier {
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: const StadiumBorder(),
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontFamily: 'Inter'),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Inter'),
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
@@ -138,12 +137,12 @@ class ThemeProvider extends ChangeNotifier {
 
   // ── DARK THEME ───────────────────────────────────────────────────────────────
   static ThemeData get darkTheme {
-    const bgColor          = Color(0xFF0B0B0B);
-    const surfaceColor     = Color(0xFF1A1A1A);
-    const primaryColor     = Color(0xFFFF6B00);
+    const bgColor          = Color(0xFF0A0A0A); // Rich near-black
+    const surfaceColor     = Color(0xFF141414); // Bento card
+    const primaryColor     = Color(0xFFFF6B00); // Vibrant orange
     const textPrimaryColor = Color(0xFFFFFFFF);
-    const textSecColor     = Color(0xFFA1A1AA);
-    const borderColor      = Color(0xFF27272A);
+    const textSecColor     = Color(0xFF888888);
+    const borderColor      = Color(0xFF242424);
 
     return ThemeData(
       useMaterial3: true,
@@ -176,19 +175,19 @@ class ThemeProvider extends ChangeNotifier {
         color: surfaceColor,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: borderColor, width: 1),
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: borderColor, width: 1),
         ),
         margin: EdgeInsets.zero,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: primaryColor,
-          foregroundColor: textPrimaryColor,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: const Color(0xFFEF5907), // Vibrant Orange in dark mode for pop
+          foregroundColor: Colors.white,
+          shape: const StadiumBorder(),
           elevation: 0,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontFamily: 'Inter'),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800, fontFamily: 'Inter'),
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
@@ -214,9 +213,9 @@ class ThemeProvider extends ChangeNotifier {
   static ThemeData get aiTheme {
     const bgColor          = Color(0xFF0F0F1A);
     const surfaceColor     = Color(0x14FFFFFF); // rgba(255,255,255,0.08)
-    const primaryColor     = Color(0xFF7C3AED); // AI Purple
+    const primaryColor     = Color(0xFF8B5CF6); // AI Purple
     const secondaryColor   = Color(0xFF00F5D4); // AI Cyan
-    const accentColor      = Color(0xFFFF6B00); // Brand Orange
+    const accentColor      = Color(0xFF86D28A); // Soft Lime
     const textPrimaryColor = Color(0xFFFFFFFF);
     const textSecColor     = Color(0xFF94A3B8);
     const borderColor      = Color(0x1FFFFFFF); // rgba(255,255,255,0.12)

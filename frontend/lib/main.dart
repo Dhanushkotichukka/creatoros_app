@@ -6,10 +6,13 @@ import 'screens/home_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'providers/view_state_provider.dart';
 import 'screens/hub_screen.dart';
-import 'screens/community_screen.dart';
+import 'screens/ai_screen.dart';
+import 'screens/ai/ai_script_screen.dart';
+import 'screens/ai_chat_screen.dart';
 import 'screens/creator_studio_screen.dart';
 import 'screens/multi_post_hub_screen.dart';
 import 'screens/creator_studio/creator_studio_layout.dart' as creator_studio;
+import 'screens/video_editor_screen.dart';
 import 'widgets/app_scaffold.dart';
 
 void main() {
@@ -57,6 +60,21 @@ class CreatorOSApp extends StatelessWidget {
       darkTheme: activeTheme,
       themeMode: themeMode,
       home: const MainNavigationScreen(),
+      routes: {
+        '/ai/script_workshop': (context) {
+           final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>? ?? {};
+           return AIScriptScreen(arguments: args);
+        },
+        '/ai-chat': (context) => const AiChatScreen(),
+        // OpenCut video editor — opened with optional {videoUrl, title} args
+        '/editor': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ?? {};
+          return VideoEditorScreen(
+            videoUrl: args['videoUrl'] as String?,
+            projectTitle: args['title'] as String?,
+          );
+        },
+      },
     );
   }
 }
@@ -69,18 +87,51 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
-  int _selectedIndex = 0;
   final GlobalKey<NavigatorState> _contentNavKey = GlobalKey<NavigatorState>();
+  int _lastTab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // Listen for global navigation events (like jumpToAnalytics)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<ViewStateProvider>().addListener(_handleProviderTabChange);
+    });
+  }
+
+  @override
+  void dispose() {
+    // Check if context is still valid or use a more robust way to remove listener
+    // but usually provider is fine
+    super.dispose();
+  }
+
+  void _handleProviderTabChange() {
+    if (!mounted) return;
+    final viewState = context.read<ViewStateProvider>();
+    if (viewState.selectedTab != _lastTab) {
+      final index = viewState.selectedTab;
+      _lastTab = index;
+      
+      _contentNavKey.currentState?.pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => _widgetOptions.elementAt(index),
+          transitionDuration: Duration.zero,
+        )
+      );
+    }
+  }
 
   static const List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     AnalyticsScreen(),
     const SizedBox.shrink(), // Placeholder for Plus button action
     HubScreen(),
-    CommunityScreen(),
+    AIScreen(),
   ];
 
   void _onItemTapped(int index) {
+    final viewState = context.read<ViewStateProvider>();
     if (index == 2) {
       print('DEBUG: Plus button clicked!');
       Navigator.of(context, rootNavigator: true).push(
@@ -102,27 +153,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         ),
       ).then((_) {
         // Trigger refresh on return
-        context.read<ViewStateProvider>().resetHome();
+        viewState.resetHome();
       });
       return;
     }
     
     // If Home is tapped, reset the view state even if already on Home
     if (index == 0) {
-      context.read<ViewStateProvider>().resetHome();
+      viewState.resetHome();
     }
 
-    if (_selectedIndex != index) {
-      setState(() {
-        _selectedIndex = index;
-      });
-      
-      _contentNavKey.currentState?.pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => _widgetOptions.elementAt(index),
-          transitionDuration: Duration.zero,
-        )
-      );
+    if (viewState.selectedTab != index) {
+      viewState.setSelectedTab(index);
+      // The listener (_handleProviderTabChange) will trigger the Navigator push
     } else {
       // Pop to first route seamlessly if tapping the same active tab
       _contentNavKey.currentState?.popUntil((route) => route.isFirst);
@@ -131,14 +174,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final viewState = context.watch<ViewStateProvider>();
+    
     return AppScaffold(
-      currentIndex: _selectedIndex,
+      currentIndex: viewState.selectedTab,
       onIndexChanged: _onItemTapped,
       body: Navigator(
         key: _contentNavKey,
         onGenerateRoute: (settings) {
           return MaterialPageRoute(
-            builder: (context) => _widgetOptions.elementAt(_selectedIndex),
+            builder: (context) => _widgetOptions.elementAt(viewState.selectedTab),
           );
         },
       ),

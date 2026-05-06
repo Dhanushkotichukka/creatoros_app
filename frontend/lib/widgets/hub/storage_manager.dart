@@ -142,104 +142,135 @@ class _StorageManagerState extends State<StorageManager> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Storage', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            Row(
+              children: [
+                const Icon(Icons.video_camera_back_rounded, color: Colors.blue, size: 20),
+                const SizedBox(width: 8),
+                const Text('Storage Overview', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
             Row(
               children: [
                 if (_isLoading)
-                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 else
-                  IconButton(
-                    icon: Icon(Icons.refresh_rounded, color: theme.colorScheme.onSurface.withOpacity(0.5), size: 20),
-                    tooltip: 'Refresh',
-                    onPressed: _loadFiles,
+                  Text(
+                    '${allFiltered.length} files',
+                    style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurface.withOpacity(0.6)),
                   ),
-                IconButton(
-                  icon: Icon(Icons.upload_file_rounded, color: theme.colorScheme.primary),
-                  tooltip: 'Upload file',
-                  onPressed: _pickAndUpload,
-                ),
+                const SizedBox(width: 4),
+                Icon(Icons.chevron_right_rounded, color: theme.colorScheme.onSurface.withOpacity(0.6), size: 20),
               ],
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 16),
 
-        // ── Storage Box ─────────────────────────────────────────────────────────
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            border: Border.all(color: borderColor),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Column(
-            children: [
-              // Filter chips + count
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: ['All', 'Local', 'Cloud'].map((filter) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: ChoiceChip(
-                          label: Text(filter, style: const TextStyle(fontSize: 12)),
-                          selected: _selectedFilter == filter,
-                          side: BorderSide.none,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          onSelected: (v) {
-                            if (v) setState(() => _selectedFilter = filter);
-                          },
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                  Text(
-                    '${allFiltered.length} files',
-                    style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withOpacity(0.5)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
+        // ── Category Cards ──────────────────────────────────────────────────────
+        Row(
+          children: [
+            _buildGridItem('Videos', Icons.videocam_rounded, const Color(0xFF1565C0), theme),
+            const SizedBox(width: 12),
+            _buildGridItem('Images', Icons.image_rounded, const Color(0xFF2E7D32), theme),
+            const SizedBox(width: 12),
+            _buildGridItem('Sounds', Icons.audiotrack_rounded, const Color(0xFFC62828), theme),
+            const SizedBox(width: 12),
+            _buildGridItem('Edits', Icons.edit_document, const Color(0xFF6A1B9A), theme),
+          ],
+        ),
+        const SizedBox(height: 24),
 
-              // 4-category grid
-              Row(
-                children: [
-                  _buildGridItem('Videos', Icons.videocam_rounded, const Color(0xFF1565C0), theme),
-                  _buildGridItem('Images', Icons.image_rounded, const Color(0xFF2E7D32), theme),
-                  _buildGridItem('Sounds', Icons.audiotrack_rounded, const Color(0xFFC62828), theme),
-                  _buildGridItem('Edits', Icons.edit_document, const Color(0xFF6A1B9A), theme),
-                ],
+        // ── Upload Container ────────────────────────────────────────────────────
+        GestureDetector(
+          onTap: _pickAndUpload,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+            decoration: BoxDecoration(
+              color: const Color(0xFF111111),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: theme.colorScheme.primary.withOpacity(0.8),
+                width: 1,
               ),
-            ],
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.cloud_upload_outlined, color: theme.colorScheme.primary, size: 40),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Upload Files', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                      const SizedBox(height: 2),
+                      Text('Drag & drop files here or tap to browse', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5), fontSize: 11)),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text('Upload', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ],
+            ),
           ),
         ),
+        const SizedBox(height: 24),
 
-        const SizedBox(height: 28),
-
-        // ── Latest storage things ───────────────────────────────────────────────
+        // ── Latest Files List ───────────────────────────────────────────────────
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                border: Border.all(color: theme.colorScheme.primary.withOpacity(0.4)),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text('Latest storage things',
-                  style: TextStyle(fontSize: 13, color: theme.colorScheme.primary, fontWeight: FontWeight.w500)),
+            Row(
+              children: ['All', 'Local', 'Cloud'].map((filter) {
+                final isSelected = _selectedFilter == filter;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedFilter = filter),
+                  child: Container(
+                    margin: const EdgeInsets.only(right: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? theme.colorScheme.primary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: isSelected ? Colors.transparent : theme.colorScheme.onSurface.withOpacity(0.2)),
+                    ),
+                    child: Text(
+                      filter,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? Colors.white : theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
-            if (allFiltered.length > 6)
-              TextButton(
-                onPressed: () => _openCategory('All'),
-                child: Text('View all ${allFiltered.length}'),
-              ),
+            Row(
+              children: [
+                Icon(Icons.filter_list_rounded, size: 16, color: theme.colorScheme.primary),
+                const SizedBox(width: 4),
+                Text('Recent', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                Icon(Icons.keyboard_arrow_down_rounded, size: 16, color: theme.colorScheme.primary),
+              ],
+            ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 24),
+        
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Latest Storage Files', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text('View all', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+          ],
+        ),
+        const SizedBox(height: 16),
 
-        // ── File List ────────────────────────────────────────────────────────────
         if (_isLoading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 40),
@@ -251,12 +282,7 @@ class _StorageManagerState extends State<StorageManager> {
             child: Center(
               child: Column(
                 children: [
-                  Image.network(
-                    'https://raw.githubusercontent.com/nikhitadasari26/multihub/main/assets/images/empty_octopus.png',
-                    height: 110,
-                    errorBuilder: (_, __, ___) =>
-                        Icon(Icons.cloud_off, size: 64, color: theme.colorScheme.onSurface.withOpacity(0.2)),
-                  ),
+                  Icon(Icons.folder_off_outlined, size: 48, color: theme.colorScheme.onSurface.withOpacity(0.2)),
                   const SizedBox(height: 14),
                   Text('No files found', style: TextStyle(color: theme.colorScheme.onSurface.withOpacity(0.5))),
                 ],
@@ -295,7 +321,7 @@ class _StorageManagerState extends State<StorageManager> {
                 ),
                 child: Container(
                   margin: const EdgeInsets.only(bottom: 8),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
                     border: Border.all(color: borderColor),
@@ -311,44 +337,47 @@ class _StorageManagerState extends State<StorageManager> {
                         ),
                         child: Icon(fileIcon, color: fileColor, size: 22),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 14),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(name,
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
-                            const SizedBox(height: 3),
+                            const SizedBox(height: 4),
                             Row(
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: isCloud ? Colors.blue.withOpacity(0.1) : Colors.green.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(5),
-                                  ),
-                                  child: Text(storage,
-                                      style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold,
-                                          color: isCloud ? Colors.blue : Colors.green)),
-                                ),
-                                const SizedBox(width: 6),
-                                Text('$sizeKb KB${dateStr.isNotEmpty ? ' · $dateStr' : ''}',
+                                Icon(isCloud ? Icons.cloud_outlined : Icons.folder_outlined, size: 12, color: theme.colorScheme.onSurface.withOpacity(0.5)),
+                                const SizedBox(width: 4),
+                                Text('$sizeKb KB',
                                     style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withOpacity(0.5))),
+                                const SizedBox(width: 8),
+                                if (dateStr.isNotEmpty) ...[
+                                  Container(width: 4, height: 4, decoration: BoxDecoration(color: theme.colorScheme.onSurface.withOpacity(0.3), shape: BoxShape.circle)),
+                                  const SizedBox(width: 8),
+                                  Text(dateStr, style: TextStyle(fontSize: 11, color: theme.colorScheme.onSurface.withOpacity(0.5))),
+                                ],
                               ],
                             ),
                           ],
                         ),
                       ),
-                      Icon(Icons.chevron_right_rounded, size: 18, color: theme.colorScheme.onSurface.withOpacity(0.3)),
+                      Icon(Icons.more_vert, size: 18, color: theme.colorScheme.onSurface.withOpacity(0.4)),
                     ],
                   ),
                 ),
               );
             },
           ),
-
+        if (allFiltered.length > 6)
+          Center(
+            child: TextButton(
+              onPressed: () => _openCategory('All'),
+              child: const Text('View All Files'),
+            ),
+          ),
         const SizedBox(height: 32),
       ],
     );
@@ -359,38 +388,53 @@ class _StorageManagerState extends State<StorageManager> {
     return Expanded(
       child: GestureDetector(
         onTap: () => _openCategory(label),
-        child: Column(
-          children: [
-            AspectRatio(
-              aspectRatio: 1,
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 5),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: color.withOpacity(0.18)),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF111111),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: theme.colorScheme.onSurface.withOpacity(0.08)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 12, top: 12, right: 12),
+                child: Row(
                   children: [
-                    Icon(icon, color: color, size: 26),
-                    if (count > 0)
-                      Positioned(
-                        top: 6,
-                        right: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(10)),
-                          child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                        ),
-                      ),
+                    Icon(icon, color: color, size: 16),
+                    const SizedBox(width: 6),
+                    Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-          ],
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text('$count\nFiles', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, height: 1.2)),
+                    const Spacer(),
+                    Text('1.2 GB', style: TextStyle(fontSize: 9, color: theme.colorScheme.onSurface.withOpacity(0.5))),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Container(
+                  height: 4,
+                  width: 40,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
         ),
       ),
     );

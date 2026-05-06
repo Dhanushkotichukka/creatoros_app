@@ -135,16 +135,31 @@ class CreatorOverviewCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: onPostRequested,
-                    icon: const Icon(Icons.upload, size: 18),
-                    label: const Text('Upload Video'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark ? Colors.grey.shade800 : Colors.grey.shade100,
-                      foregroundColor: isDark ? Colors.white : Colors.black87,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      elevation: 0,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.transparent,
+                      border: Border.all(color: theme.colorScheme.primary, width: 2),
+                      borderRadius: BorderRadius.circular(14),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.colorScheme.primary.withOpacity(0.15),
+                          blurRadius: 8,
+                          spreadRadius: 0,
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: onPostRequested,
+                      icon: Icon(Icons.upload, size: 18, color: theme.colorScheme.primary),
+                      label: Text('Upload Video', style: TextStyle(fontWeight: FontWeight.w700, color: theme.colorScheme.primary)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        foregroundColor: theme.colorScheme.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
                     ),
                   ),
                 ),

@@ -5,8 +5,12 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/multi_post/post_model.dart';
 
 class ApiService {
-  // Use local IP for mobile device, and localhost for web for better developer experience
-  static String get baseUrl => kIsWeb ? 'http://localhost:3000' : 'http://192.168.1.7:3000';
+  // Use local IP for mobile device, and 127.0.0.1 for web to avoid IPv6 resolution issues on Windows Chrome
+  static String get baseUrl {
+    if (kIsWeb) return 'http://127.0.0.1:3000';
+    if (defaultTargetPlatform == TargetPlatform.android) return 'http://10.0.2.2:3000'; // Android Emulator loopback
+    return 'http://192.168.1.7:3000'; // iOS Simulator or physical device
+  }
   static bool hasConnected = false; // Mock local persistent state for demo UX
 
   static Future<void> loginWithYouTube() async {
@@ -44,21 +48,37 @@ class ApiService {
 
   static Future<String> generateScript(String topic) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/api/ai/generate-script'),
+      Uri.parse('$baseUrl/api/ai/script'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'topic': topic}),
     );
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body)['script'];
+      final json = jsonDecode(response.body);
+      return json['data'] ?? json['script'] ?? 'Success';
     } else {
       throw Exception('Failed to generate script');
     }
   }
 
+  static Future<String> generateAIChat(String message) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/ai/chat'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'message': message, 'context': ''}),
+    );
+
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      return json['data'] ?? 'Success';
+    } else {
+      throw Exception('Failed to get AI chat response');
+    }
+  }
+
   static Future<String> generateHashtags(String topic) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/api/ai/generate-hashtags'),
+      Uri.parse('$baseUrl/api/ai/metadata'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'topic': topic}),
     );
@@ -101,8 +121,10 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> getAnalyticsOverview() async {
-    final response = await http.get(Uri.parse('$baseUrl/api/analytics/overview'));
+  static Future<Map<String, dynamic>> getAnalyticsOverview({bool forceRefresh = false}) async {
+    final uri = Uri.parse('$baseUrl/api/analytics/overview')
+        .replace(queryParameters: forceRefresh ? {'refresh': '1'} : null);
+    final response = await http.get(uri);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -111,14 +133,62 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>> getPlatformAnalytics(String platform) async {
-    final response = await http.get(Uri.parse('$baseUrl/api/analytics/${platform.toLowerCase()}'));
+  static Future<Map<String, dynamic>> getPlatformAnalytics(String platform, {bool forceRefresh = false}) async {
+    final uri = Uri.parse('$baseUrl/api/analytics/${platform.toLowerCase()}')
+        .replace(queryParameters: forceRefresh ? {'refresh': '1'} : null);
+    final response = await http.get(uri);
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to fetch platform analytics');
     }
+  }
+
+  // ── AI Insights — client-side 5-min cache ────────────────────────────────
+  static final Map<String, Map<String, dynamic>> _insightsCacheMap = {};
+  static final Map<String, DateTime> _insightsCacheTsMap = {};
+  static const Duration _insightsCacheTtl = Duration(minutes: 5);
+
+  /// Fetch AI insights. Uses a local in-memory cache (5 min TTL) to avoid
+  /// repeated Groq calls on every rebuild or hot-reload.
+  static Future<Map<String, dynamic>> getAIInsights({String? platform, bool forceRefresh = false}) async {
+    final String cacheKey = platform ?? 'overview';
+    if (!forceRefresh && _insightsCacheMap.containsKey(cacheKey) && _insightsCacheTsMap.containsKey(cacheKey)) {
+      if (DateTime.now().difference(_insightsCacheTsMap[cacheKey]!) < _insightsCacheTtl) {
+        return _insightsCacheMap[cacheKey]!;
+      }
+    }
+    
+    final uri = Uri.parse('$baseUrl/api/analytics/insights').replace(
+      queryParameters: platform != null && platform.toLowerCase() != 'overview' 
+          ? {'platform': platform} 
+          : null,
+    );
+    
+    final response = await http.post(uri);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      _insightsCacheMap[cacheKey] = data;
+      _insightsCacheTsMap[cacheKey] = DateTime.now();
+      return data;
+    } else {
+      throw Exception('Failed to fetch AI insights (${response.statusCode})');
+    }
+  }
+
+  /// Clear the client-side insights cache (call after connecting a new platform).
+  static void clearInsightsCache() {
+    _insightsCacheMap.clear();
+    _insightsCacheTsMap.clear();
+  }
+
+
+  /// Call this after connecting or disconnecting a platform so fresh data loads.
+  static Future<void> clearAnalyticsCache() async {
+    try {
+      await http.post(Uri.parse('$baseUrl/api/analytics/cache/clear'));
+    } catch (_) {}
   }
 
   static Future<Map<String, dynamic>> getVideoAnalytics(String videoId) async {
@@ -128,6 +198,84 @@ class ApiService {
       return jsonDecode(response.body);
     } else {
       throw Exception('Failed to fetch video analytics');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getVideoComments(String videoId, {String? pageToken}) async {
+    String url = '$baseUrl/api/analytics/video/$videoId/comments';
+    if (pageToken != null) url += '?pageToken=$pageToken';
+    
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch video comments');
+    }
+  }
+
+  static Future<bool> postVideoReply(String videoId, String commentId, String text) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/analytics/video/$videoId/reply'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'commentId': commentId, 'text': text}),
+    );
+
+    if (response.statusCode == 200) {
+      return true;
+    } else {
+      throw Exception('Failed to post reply');
+    }
+  }
+
+  // --- SMART MEDIA SEARCH ---
+  static Future<Map<String, dynamic>> searchMedia(
+    String query, {
+    String type = 'image',
+    int page = 1,
+    int perPage = 15,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/media/search').replace(queryParameters: {
+      'q': query,
+      'type': type,
+      'page': page.toString(),
+      'perPage': perPage.toString(),
+    });
+    final response = await http.get(uri);
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to search media (${response.statusCode})');
+    }
+  }
+
+  /// Import a stock media URL into CreatorOS storage.
+  /// [destination] is 'local' or 's3'.
+  static Future<Map<String, dynamic>> importMediaFromUrl({
+    required String url,
+    required String fileName,
+    String destination = 'local',
+    String mimeType = 'image/jpeg',
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/media/import-from-url'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'url': url,
+        'fileName': fileName,
+        'destination': destination,
+        'mimeType': mimeType,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else if (response.statusCode == 429) {
+      throw Exception('Rate limit reached. Please wait a moment and try again.');
+    } else if (response.statusCode == 403) {
+      throw Exception('Access denied by media provider. Try a different image.');
+    } else {
+      final err = jsonDecode(response.body);
+      throw Exception(err['error'] ?? 'Import failed (${response.statusCode})');
     }
   }
 
@@ -179,6 +327,35 @@ class ApiService {
 
 
   // --- PLATFORM STATUS & DISCONNECT ---
+  static Future<List<dynamic>> getPlatformStatus() async {
+    final response = await http.get(Uri.parse('$baseUrl/api/analytics/platforms/status'));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      // Convert map to list for UI chips
+      List<dynamic> platforms = [];
+      data.forEach((key, val) {
+        String brandedName;
+        switch (key.toLowerCase()) {
+          case 'youtube': brandedName = 'YouTube'; break;
+          case 'instagram': brandedName = 'Instagram'; break;
+          case 'linkedin': brandedName = 'LinkedIn'; break;
+          default: brandedName = key[0].toUpperCase() + key.substring(1);
+        }
+        
+        platforms.add({
+          'name': brandedName,
+          'isConnected': val['connected'] ?? false,
+          'channelName': val['name'],
+          'channelAvatar': val['avatar'],
+        });
+      });
+      return platforms;
+    } else {
+      throw Exception('Failed to fetch platform status');
+    }
+  }
+
+  // Helper for components expecting a Map structure
   static Future<Map<String, dynamic>> getPlatformStatuses() async {
     final response = await http.get(Uri.parse('$baseUrl/api/analytics/platforms/status'));
     if (response.statusCode == 200) {
@@ -231,3 +408,4 @@ class ApiService {
     }
   }
 }
+
