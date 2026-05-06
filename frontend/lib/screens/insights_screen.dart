@@ -227,7 +227,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
           if (pe['winning_pattern'] != null) _WinningPatternCard(data: pe['winning_pattern'] as Map<String, dynamic>, c: c, theme: theme),
 
           // Standard insight cards
-          ...cardList.map((cfg) => _InsightCard(config: cfg, scoreColorResolver: _scoreColor)).toList(),
+          ...cardList.map((cfg) => _InsightCard(config: cfg, scoreColorResolver: _scoreColor)),
 
           // Top vs Low Analysis
           if (pe['top_vs_low_analysis'] != null) _TopVsLowCard(data: pe['top_vs_low_analysis'] as Map<String, dynamic>, c: c, theme: theme),
@@ -713,6 +713,7 @@ class _ShimmerBodyState extends State<_ShimmerBody>
               )),
             ],
           ),
+        ),
         );
       },
     );
@@ -1012,7 +1013,7 @@ class _NextVideoPlanCard extends StatelessWidget {
                  ),
                ]),
              );
-          }).toList(),
+          }),
         ],
       ]),
     );
