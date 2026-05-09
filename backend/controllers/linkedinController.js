@@ -2,6 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const Token = require('../models/Token');
 require('dotenv').config();
 
 // Persistent agent to force IPv4 and reduce SSL handshake overhead
@@ -54,51 +55,60 @@ exports.handleCallback = async (req, res) => {
 
         const accessToken = tokenResponse.data.access_token;
         const idToken = tokenResponse.data.id_token;
-        global.linkedinToken = accessToken;
+
+        let linkedinUserUrn = null;
+        let linkedinName = null;
+        let linkedinAvatar = null;
 
         if (idToken) {
             const decoded = decodeJWT(idToken);
             if (decoded) {
-                global.linkedinUserUrn = `urn:li:person:${decoded.sub}`;
-                global.linkedinName = decoded.name || (decoded.given_name ? `${decoded.given_name} ${decoded.family_name || ''}` : null);
-                global.linkedinAvatar = decoded.picture;
-                
-                const { saveSessions } = require('../utils/sessionHelper');
-                saveSessions();
+                linkedinUserUrn = `urn:li:person:${decoded.sub}`;
+                linkedinName = decoded.name || (decoded.given_name ? `${decoded.given_name} ${decoded.family_name || ''}` : null);
+                linkedinAvatar = decoded.picture;
                 console.log('LinkedIn Profile loaded from ID Token.');
             }
         }
 
-        if (!global.linkedinUserUrn) {
+        if (!linkedinUserUrn) {
             try {
                 const profileRes = await axios.get('https://api.linkedin.com/userinfo', {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 const profile = profileRes.data;
-                global.linkedinUserUrn = `urn:li:person:${profile.sub}`;
-                global.linkedinName = profile.name;
-                global.linkedinAvatar = profile.picture;
-                
-                const { saveSessions } = require('../utils/sessionHelper');
-                saveSessions();
+                linkedinUserUrn = `urn:li:person:${profile.sub}`;
+                linkedinName = profile.name;
+                linkedinAvatar = profile.picture;
             } catch (profileErr) {
                 console.error('LinkedIn Sync Error:', profileErr.response?.data || profileErr.message);
                 try {
                     const legacyRes = await axios.get('https://api.linkedin.com/v2/me', {
                         headers: { 'Authorization': `Bearer ${accessToken}` }
                     });
-                    global.linkedinUserUrn = `urn:li:person:${legacyRes.data.id}`;
-                    global.linkedinName = `${legacyRes.data.localizedFirstName || ''} ${legacyRes.data.localizedLastName || ''}`.trim();
+                    linkedinUserUrn = `urn:li:person:${legacyRes.data.id}`;
+                    linkedinName = `${legacyRes.data.localizedFirstName || ''} ${legacyRes.data.localizedLastName || ''}`.trim();
                 } catch (legacyErr) {}
             }
         }
+
+        const DEFAULT_USER_ID = 'default-user-id';
+        let tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
+        if (!tokenDoc) {
+             tokenDoc = new Token({ userId: DEFAULT_USER_ID, platform: 'linkedin', accessToken });
+        } else {
+             tokenDoc.accessToken = accessToken;
+        }
+        tokenDoc.platformAccountId = linkedinUserUrn;
+        tokenDoc.platformAccountName = linkedinName;
+        tokenDoc.profileAvatar = linkedinAvatar;
+        await tokenDoc.save();
 
         res.send(`
             <html>
             <body style="display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; background:#f4f4f9; margin:0;">
               <div style="text-align:center; padding: 40px; background:white; border-radius:12px; box-shadow:0 10px 25px rgba(0,0,0,0.05);">
                 <h1 style="color:#0077B5; font-size:32px;">💼 LinkedIn Linked!</h1>
-                <p style="font-size:18px; color:#555;">Welcome, ${global.linkedinName || 'Professional'}!</p>
+                <p style="font-size:18px; color:#555;">Welcome, ${linkedinName || 'Professional'}!</p>
                 <p style="color:#888;">Redirecting back to CreatorOS...</p>
                 <a href="creatoros://auth/success" style="display:inline-block; margin-top:20px; padding:12px 24px; background:#0077B5; color:white; text-decoration:none; border-radius:8px; font-weight:bold;">Return to App</a>
                 <script>
@@ -123,14 +133,15 @@ exports.handleCallback = async (req, res) => {
  *   1. Try to register + upload media via /rest/images or /rest/videos
  *   2. If Step 1 times out or fails → fall back to text-only ugcPost
  */
-exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = []) => {
-    if (!global.linkedinToken || !global.linkedinUserUrn) {
+exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [], userId = 'default-user-id') => {
+    const tokenDoc = await Token.findOne({ userId, platform: 'linkedin' });
+    if (!tokenDoc?.accessToken || !tokenDoc?.platformAccountId) {
         throw new Error('LinkedIn not connected or profile info missing');
     }
 
     const paths = Array.isArray(localMediaPaths) ? localMediaPaths : [localMediaPaths];
-    const accessToken = global.linkedinToken;
-    const author = global.linkedinUserUrn; // e.g. urn:li:person:ABC123
+    const accessToken = tokenDoc.accessToken;
+    const author = tokenDoc.platformAccountId; // e.g. urn:li:person:ABC123
 
     const isVideoFile = (p) => {
         const ext = (p || '').toLowerCase().split('?')[0].split('.').pop();
@@ -452,8 +463,10 @@ async function pollLinkedInStatus(assetUrn, token, isVid) {
 }
 
 exports.getLinkedInAnalytics = async (req, res) => {
-    const authorUrn = req.query.organizationUrn || global.linkedinUserUrn;
-    const accessToken = req.headers.authorization?.split(' ')[1] || global.linkedinToken;
+    const DEFAULT_USER_ID = 'default-user-id';
+    const tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
+    const authorUrn = req.query.organizationUrn || tokenDoc?.platformAccountId;
+    const accessToken = req.headers.authorization?.split(' ')[1] || tokenDoc?.accessToken;
 
     if (!authorUrn || !accessToken) return res.status(400).json({ error: 'No credentials' });
 
@@ -527,16 +540,14 @@ exports.fetchRecentPosts = async (accessToken, authorUrn) => {
     }
 };
 
-exports.getStatus = (req, res) => {
-    res.json({ connected: !!global.linkedinToken, name: global.linkedinName, avatar: global.linkedinAvatar, urn: global.linkedinUserUrn });
+exports.getStatus = async (req, res) => {
+    const DEFAULT_USER_ID = 'default-user-id';
+    const tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
+    res.json({ connected: !!tokenDoc?.accessToken, name: tokenDoc?.platformAccountName, avatar: tokenDoc?.profileAvatar, urn: tokenDoc?.platformAccountId });
 };
 
-exports.disconnect = (req, res) => {
-    global.linkedinToken = null;
-    global.linkedinUserUrn = null;
-    global.linkedinName = null;
-    global.linkedinAvatar = null;
-    const { saveSessions } = require('../utils/sessionHelper');
-    saveSessions();
+exports.disconnect = async (req, res) => {
+    const DEFAULT_USER_ID = 'default-user-id';
+    await Token.deleteOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
     res.json({ success: true, message: 'LinkedIn disconnected' });
 };

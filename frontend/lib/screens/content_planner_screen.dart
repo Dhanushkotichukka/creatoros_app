@@ -332,6 +332,7 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Text(
                                       task.title,
@@ -349,13 +350,14 @@ class _ContentPlannerScreenState extends State<ContentPlannerScreen> {
                                       Text(
                                         task.description,
                                         style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurface.withOpacity(0.5)),
-                                        maxLines: 1,
+                                        maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ],
                                   ],
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               Icon(Icons.drag_handle, size: 18, color: theme.colorScheme.onSurface.withOpacity(0.3)),
                             ],
                           ),

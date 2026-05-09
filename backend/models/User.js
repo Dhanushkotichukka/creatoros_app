@@ -1,31 +1,31 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
-const User = sequelize.define('User', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true,
+const userSchema = new mongoose.Schema({
+  _id: {
+    type: String,
+    default: uuidv4
   },
   name: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
   },
   email: {
-    type: DataTypes.STRING,
-    allowNull: false,
+    type: String,
+    required: true,
     unique: true,
   },
   creatorScore: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
+    type: Number,
+    default: 0,
   },
   preferences: {
-    type: DataTypes.JSON,
-    defaultValue: {},
+    type: Object,
+    default: {},
   }
 }, {
   timestamps: true,
 });
 
+const User = mongoose.model('User', userSchema);
 module.exports = User;

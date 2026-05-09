@@ -1,43 +1,35 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-const Content = require('./Content');
+const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
-const Analytics = sequelize.define('Analytics', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true,
+const analyticsSchema = new mongoose.Schema({
+  _id: {
+    type: String,
+    default: uuidv4
+  },
+  userId: {
+    type: String,
+    ref: 'User'
   },
   platform: {
-    type: DataTypes.ENUM('youtube', 'meta', 'linkedin'),
-    allowNull: false,
+    type: String,
+    enum: ['youtube', 'meta', 'linkedin'],
+    required: true,
+  },
+  contentId: {
+    type: String,
+    ref: 'Content'
   },
   date: {
-    type: DataTypes.DATEONLY,
-    allowNull: false,
+    type: Date,
+    required: true,
   },
-  views: { type: DataTypes.INTEGER, defaultValue: 0 },
-  likes: { type: DataTypes.INTEGER, defaultValue: 0 },
-  comments: { type: DataTypes.INTEGER, defaultValue: 0 },
-  shares: { type: DataTypes.INTEGER, defaultValue: 0 },
-  watchTimeHours: { type: DataTypes.FLOAT, defaultValue: 0 },
-  ctr: { type: DataTypes.FLOAT, defaultValue: 0 },
-  retentionRate: { type: DataTypes.FLOAT, defaultValue: 0 },
-  impressions: { type: DataTypes.INTEGER, defaultValue: 0 },
-  platformContentId: { 
-    type: DataTypes.STRING, 
+  metrics: {
+    type: Object,
+    default: {}
   }
 }, {
   timestamps: true,
-  indexes: [
-    {
-      unique: false,
-      fields: ['contentId', 'platform', 'date']
-    }
-  ]
 });
 
-Content.hasMany(Analytics, { foreignKey: 'contentId', as: 'analytics' });
-Analytics.belongsTo(Content, { foreignKey: 'contentId' });
-
+const Analytics = mongoose.model('Analytics', analyticsSchema);
 module.exports = Analytics;

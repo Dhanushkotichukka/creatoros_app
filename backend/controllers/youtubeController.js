@@ -1,4 +1,5 @@
 const { google } = require('googleapis');
+const Token = require('../models/Token');
 require('dotenv').config();
 
 const oauth2Client = new google.auth.OAuth2(
@@ -7,32 +8,49 @@ const oauth2Client = new google.auth.OAuth2(
     'http://localhost:3000/auth/youtube/callback'
 );
 
+// Assuming a default userId for now, this should ideally come from auth context
+const DEFAULT_USER_ID = 'default-user-id';
+
+// Helper to get youtube token for a user
+async function getTokens(userId = DEFAULT_USER_ID) {
+    return await Token.findOne({ userId, platform: 'youtube' });
+}
+
 // ONE-TIME LISTENER setup to avoid memory leaks
-oauth2Client.on('tokens', (tokens) => {
+oauth2Client.on('tokens', async (tokens) => {
     console.log('[AUTH] New YouTube tokens received.');
-    if (tokens.refresh_token) global.youtubeRefreshToken = tokens.refresh_token;
-    if (tokens.access_token) global.youtubeToken = tokens.access_token;
-    
-    try {
-        const { saveSessions } = require('../utils/sessionHelper');
-        saveSessions();
-    } catch (e) { console.error('[AUTH] Failed to save refreshed session:', e.message); }
+    const userId = DEFAULT_USER_ID; // Should come from context or state
+    const existingToken = await Token.findOne({ userId, platform: 'youtube' });
+    if (existingToken) {
+        if (tokens.refresh_token) existingToken.refreshToken = tokens.refresh_token;
+        if (tokens.access_token) existingToken.accessToken = tokens.access_token;
+        await existingToken.save();
+    } else {
+        await Token.create({
+            userId,
+            platform: 'youtube',
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token || '',
+        });
+    }
 });
 
-async function getYouTubeClient() {
-    if (!global.youtubeToken) return null;
+async function getYouTubeClient(userId = DEFAULT_USER_ID) {
+    const tokenDoc = await getTokens(userId);
+    if (!tokenDoc || !tokenDoc.accessToken) return null;
     oauth2Client.setCredentials({
-        access_token: global.youtubeToken,
-        refresh_token: global.youtubeRefreshToken
+        access_token: tokenDoc.accessToken,
+        refresh_token: tokenDoc.refreshToken
     });
     return google.youtube({ version: 'v3', auth: oauth2Client });
 }
 
-async function getYouTubeAnalyticsClient() {
-    if (!global.youtubeToken) return null;
+async function getYouTubeAnalyticsClient(userId = DEFAULT_USER_ID) {
+    const tokenDoc = await getTokens(userId);
+    if (!tokenDoc || !tokenDoc.accessToken) return null;
     oauth2Client.setCredentials({
-        access_token: global.youtubeToken,
-        refresh_token: global.youtubeRefreshToken
+        access_token: tokenDoc.accessToken,
+        refresh_token: tokenDoc.refreshToken
     });
     return google.youtubeAnalytics({ version: 'v2', auth: oauth2Client });
 }
@@ -57,34 +75,57 @@ exports.handleCallback = async (req, res) => {
     const { code } = req.query;
     try {
         const { tokens } = await oauth2Client.getToken(code);
-        global.youtubeToken = tokens.access_token;
-        global.youtubeRefreshToken = tokens.refresh_token || global.youtubeRefreshToken;
         oauth2Client.setCredentials(tokens);
+
+        let ytChannelId = null;
+        let ytChannelName = null;
+        let ytAvatar = null;
+        let ytUploadsPlaylistId = null;
 
         try {
             const youtube = google.youtube({ version: 'v3', auth: oauth2Client });
             const ytResponse = await youtube.channels.list({ part: 'snippet,contentDetails', mine: true });
             if (ytResponse.data.items?.length) {
                 const channel = ytResponse.data.items[0];
-                global.ytChannelId = channel.id; // SAVE CHANNEL ID
-                global.ytChannelName = channel.snippet.title;
-                global.ytAvatar = channel.snippet.thumbnails.default.url;
-                global.ytUploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads; // SAVE UPLOADS ID
+                ytChannelId = channel.id;
+                ytChannelName = channel.snippet.title;
+                ytAvatar = channel.snippet.thumbnails.default.url;
+                ytUploadsPlaylistId = channel.contentDetails.relatedPlaylists.uploads;
             }
         } catch (e) { 
             console.warn('[YT] Profile API quota hit. Falling back to Google Profile for avatar:', e.message); 
             try {
                 const oauth2 = google.oauth2({ auth: oauth2Client, version: 'v2' });
                 const userInfo = await oauth2.userinfo.get();
-                global.ytChannelName = userInfo.data.name || 'Connected Creator';
-                global.ytAvatar = userInfo.data.picture;
+                ytChannelName = userInfo.data.name || 'Connected Creator';
+                ytAvatar = userInfo.data.picture;
             } catch (err) {
                 console.error('[YT] Both Profile and UserInfo failed:', err.message);
             }
         }
 
-        const { saveSessions } = require('../utils/sessionHelper');
-        saveSessions();
+        const userId = DEFAULT_USER_ID; // Or req.user.id in a real app
+        const existingToken = await Token.findOne({ userId, platform: 'youtube' });
+        if (existingToken) {
+            existingToken.accessToken = tokens.access_token;
+            existingToken.refreshToken = tokens.refresh_token || existingToken.refreshToken;
+            existingToken.platformAccountId = ytChannelId;
+            existingToken.platformAccountName = ytChannelName;
+            existingToken.profileAvatar = ytAvatar;
+            existingToken.extraData = { ytUploadsPlaylistId };
+            await existingToken.save();
+        } else {
+            await Token.create({
+                userId,
+                platform: 'youtube',
+                accessToken: tokens.access_token,
+                refreshToken: tokens.refresh_token || '',
+                platformAccountId: ytChannelId,
+                platformAccountName: ytChannelName,
+                profileAvatar: ytAvatar,
+                extraData: { ytUploadsPlaylistId }
+            });
+        }
 
         res.send(`
             <html>
@@ -102,24 +143,27 @@ exports.handleCallback = async (req, res) => {
 
 exports.getChannelInfo = async (req, res) => {
     try {
-        const youtube = await getYouTubeClient();
+        const userId = req.query.userId || DEFAULT_USER_ID;
+        const youtube = await getYouTubeClient(userId);
         if (!youtube) return res.status(401).json({ error: 'Not connected' });
         const response = await youtube.channels.list({ part: 'snippet,contentDetails,statistics', mine: true });
         res.json(response.data);
     } catch (error) { res.status(500).json({ error: 'Failed' }); }
 };
 
-exports.getStatus = (req, res) => {
+exports.getStatus = async (req, res) => {
+    const userId = req.query.userId || DEFAULT_USER_ID;
+    const tokenDoc = await Token.findOne({ userId, platform: 'youtube' });
     res.json({ 
-        connected: !!global.youtubeToken,
-        name: global.ytChannelName,
-        avatar: global.ytAvatar,
-        id: global.ytChannelId // EXPOSE ID
+        connected: !!tokenDoc,
+        name: tokenDoc ? tokenDoc.platformAccountName : null,
+        avatar: tokenDoc ? tokenDoc.profileAvatar : null,
+        id: tokenDoc ? tokenDoc.platformAccountId : null
     });
 };
 
-exports.publishToYouTube = async (mediaPath, metadata) => {
-    const youtube = await getYouTubeClient();
+exports.publishToYouTube = async (mediaPath, metadata, userId = DEFAULT_USER_ID) => {
+    const youtube = await getYouTubeClient(userId);
     if (!youtube) throw new Error('YouTube not connected');
     const fs = require('fs');
     const response = await youtube.videos.insert({
@@ -133,14 +177,8 @@ exports.publishToYouTube = async (mediaPath, metadata) => {
     return { success: true, platform: 'YouTube', id: response.data.id };
 };
 
-exports.disconnect = (req, res) => {
-    global.youtubeToken = null;
-    global.youtubeRefreshToken = null;
-    global.ytChannelName = null;
-    global.ytAvatar = null;
-    global.ytChannelId = null;
-    global.ytUploadsPlaylistId = null;
-    const { saveSessions } = require('../utils/sessionHelper');
-    saveSessions();
+exports.disconnect = async (req, res) => {
+    const userId = req.query.userId || DEFAULT_USER_ID;
+    await Token.deleteOne({ userId, platform: 'youtube' });
     res.json({ success: true, message: 'YouTube disconnected' });
 };

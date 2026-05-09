@@ -20,11 +20,8 @@ process.on('unhandledRejection', (reason, promise) => {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Load persistent sessions
-global.youtubeToken = null;
-global.metaToken = null;
-global.linkedinToken = null;
-loadSessions();
+// Initialize session helpers if needed, but globals are removed
+// loadSessions();
 
 // Serve static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -70,9 +67,12 @@ app.get('/', (req, res) => {
     res.json({ message: 'CreatorOS Backend API is running' });
 });
 
+const schedulerService = require('./services/schedulerService');
+
 console.log('Connecting to database...');
 syncDatabase().then(() => {
     console.log('Starting server...');
+    schedulerService.start();
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT} (Listening on all interfaces)`);
         

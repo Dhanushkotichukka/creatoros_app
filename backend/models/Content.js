@@ -1,56 +1,58 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-const User = require('./User');
+const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
-const Content = sequelize.define('Content', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true,
+const contentSchema = new mongoose.Schema({
+  _id: {
+    type: String,
+    default: uuidv4
+  },
+  userId: {
+    type: String,
+    ref: 'User'
   },
   title: {
-    type: DataTypes.STRING,
+    type: String,
   },
   description: {
-    type: DataTypes.TEXT,
+    type: String,
   },
   contentType: {
-    type: DataTypes.ENUM('video', 'image', 'post', 'short', 'reel'),
-    allowNull: false,
+    type: String,
+    enum: ['video', 'image', 'post', 'short', 'reel', 'carousel'],
+    required: true,
   },
   platforms: {
-    type: DataTypes.JSON,
-    defaultValue: [],
+    type: Object,
+    default: {},
   },
   status: {
-    type: DataTypes.ENUM('draft', 'scheduled', 'published', 'failed'),
-    defaultValue: 'draft',
+    type: String,
+    enum: ['draft', 'scheduled', 'published', 'failed'],
+    default: 'draft',
   },
   mediaUrl: {
-    type: DataTypes.STRING,
+    type: String,
   },
   thumbnailUrl: {
-    type: DataTypes.STRING,
+    type: String,
   },
   scheduledAt: {
-    type: DataTypes.DATE,
+    type: Date,
   },
   publishedAt: {
-    type: DataTypes.DATE,
+    type: Date,
   },
   aiMetadata: {
-    type: DataTypes.JSON,
-    defaultValue: {}, // stores things like AI suggestions, score, scripts used
+    type: Object,
+    default: {},
   },
   platformMetadata: {
-    type: DataTypes.JSON,
-    defaultValue: {}, // stores platform-specific IDs, engagement stats, etc.
+    type: Object,
+    default: {},
   }
 }, {
   timestamps: true,
 });
 
-User.hasMany(Content, { foreignKey: 'userId', as: 'contents' });
-Content.belongsTo(User, { foreignKey: 'userId' });
-
+const Content = mongoose.model('Content', contentSchema);
 module.exports = Content;

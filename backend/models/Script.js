@@ -1,40 +1,56 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
-const Script = sequelize.define('Script', {
-    id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        primaryKey: true,
-    },
-    topicTitle: {
-        type: DataTypes.STRING,
-        allowNull: false,
-    },
-    folder: {
-        type: DataTypes.STRING,
-        defaultValue: 'general'
-    },
-    hook: {
-        type: DataTypes.TEXT,
-    },
-    mainContent: {
-        type: DataTypes.TEXT,
-    },
-    callToAction: {
-        type: DataTypes.TEXT,
-    },
-    sourceDetails: {
-        type: DataTypes.JSON, // Will store { type: 'YouTube', url: '...', views: '...', date: '...' }
-    },
-    trendReason: {
-        type: DataTypes.TEXT,
-    },
-    aiRating: {
-        type: DataTypes.FLOAT,
-    }
+const scriptSchema = new mongoose.Schema({
+  _id: {
+    type: String,
+    default: uuidv4
+  },
+  userId: {
+    type: String,
+    ref: 'User'
+  },
+  contentId: {
+    type: String,
+    ref: 'Content'
+  },
+  title: {
+    type: String,
+    required: true,
+  },
+  topic: {
+    type: String,
+  },
+  content: {
+    type: String,
+    required: true,
+  },
+  hook: {
+    type: String,
+  },
+  body: {
+    type: String,
+  },
+  callToAction: {
+    type: String,
+  },
+  durationEstimate: {
+    type: Number,
+  },
+  aiModelUsed: {
+    type: String,
+  },
+  platform: {
+    type: String,
+  },
+  status: {
+    type: String,
+    enum: ['draft', 'ready', 'used'],
+    default: 'draft',
+  }
 }, {
-    timestamps: true,
+  timestamps: true,
 });
 
+const Script = mongoose.model('Script', scriptSchema);
 module.exports = Script;

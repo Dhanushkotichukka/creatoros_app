@@ -1,42 +1,51 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-const User = require('./User');
+const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
-const Token = sequelize.define('Token', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true,
+const tokenSchema = new mongoose.Schema({
+  _id: {
+    type: String,
+    default: uuidv4
+  },
+  userId: {
+    type: String,
+    ref: 'User',
+    required: false // Allow null for now, assuming single user or session-based initially if we don't have login, or just require it if we want
   },
   platform: {
-    type: DataTypes.ENUM('youtube', 'meta', 'linkedin'),
-    allowNull: false,
+    type: String,
+    enum: ['youtube', 'meta', 'linkedin'],
+    required: true,
   },
   accessToken: {
-    type: DataTypes.TEXT,
-    allowNull: false,
+    type: String,
+    required: true,
   },
   refreshToken: {
-    type: DataTypes.TEXT,
+    type: String,
   },
   scopes: {
-    type: DataTypes.JSON,
-    defaultValue: [],
+    type: [String],
+    default: [],
   },
   expiresAt: {
-    type: DataTypes.DATE,
+    type: Date,
   },
   platformAccountId: {
-    type: DataTypes.STRING,
+    type: String,
   },
   platformAccountName: {
-    type: DataTypes.STRING,
+    type: String,
+  },
+  profileAvatar: {
+    type: String
+  },
+  extraData: {
+    type: Object,
+    default: {}
   }
 }, {
   timestamps: true,
 });
 
-User.hasMany(Token, { foreignKey: 'userId', as: 'tokens' });
-Token.belongsTo(User, { foreignKey: 'userId' });
-
+const Token = mongoose.model('Token', tokenSchema);
 module.exports = Token;

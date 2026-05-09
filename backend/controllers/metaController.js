@@ -1,6 +1,7 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const Token = require('../models/Token');
 require('dotenv').config();
 
 async function resolveIGAccount(accessToken) {
@@ -120,18 +121,24 @@ async function resolveIGAccount(accessToken) {
             debugData.selectedIgId = igId;
             console.log(`[DIAGNOSTIC] Using IG from page: "${selectedPage.name}" (IG ID: ${igId})`);
             const igInfo = await axios.get(`https://graph.facebook.com/v19.0/${igId}?fields=username,name,profile_picture_url&access_token=${accessToken}`);
-            global.igAccountId = igId;
-            global.igUsername = igInfo.data.username;
-            global.igName = igInfo.data.name;
-            global.igAvatar = igInfo.data.profile_picture_url;
-            console.log(`[DIAGNOSTIC] RESOLVED: @${global.igUsername}`);
+
+            const DEFAULT_USER_ID = 'default-user-id';
+            let tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
+            if (!tokenDoc) {
+                 tokenDoc = new Token({ userId: DEFAULT_USER_ID, platform: 'meta', accessToken });
+            }
+            tokenDoc.platformAccountId = igId;
+            tokenDoc.extraData = { igUsername: igInfo.data.username };
+            tokenDoc.platformAccountName = igInfo.data.name;
+            tokenDoc.profileAvatar = igInfo.data.profile_picture_url;
+            await tokenDoc.save();
+
+            console.log(`[DIAGNOSTIC] RESOLVED: @${tokenDoc.extraData.igUsername}`);
             
             // Save successful debug data too
             debugData.resolvedIg = igInfo.data;
             fs.writeFileSync(debugPath, JSON.stringify(debugData, null, 2));
 
-            const { saveSessions } = require('../utils/sessionHelper');
-            saveSessions();
             return true;
         }
 
@@ -176,7 +183,15 @@ exports.handleCallback = async (req, res) => {
         // Exchange code for short-lived token
         const tokenResponse = await axios.get(`https://graph.facebook.com/v19.0/oauth/access_token?client_id=${APP_ID}&redirect_uri=${REDIRECT_URI}&client_secret=${APP_SECRET}&code=${code}`);
         const accessToken = tokenResponse.data.access_token;
-        global.metaToken = accessToken;
+
+        const DEFAULT_USER_ID = 'default-user-id';
+        let tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
+        if (!tokenDoc) {
+             tokenDoc = new Token({ userId: DEFAULT_USER_ID, platform: 'meta', accessToken });
+        } else {
+             tokenDoc.accessToken = accessToken;
+        }
+        await tokenDoc.save();
 
         // Automatically resolve the linked Instagram Business Account
         await resolveIGAccount(accessToken);
@@ -211,7 +226,9 @@ exports.getInstagramAnalytics = async (req, res) => {
     // Requires an Instagram Business Account linked to a Facebook Page
     // This expects the Page Access Token to be passed in Auth headers or query
     const { pageId, igAccountId } = req.query;
-    const accessToken = req.headers.authorization?.split(' ')[1] || global.metaToken;
+    const DEFAULT_USER_ID = 'default-user-id';
+    const tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
+    const accessToken = req.headers.authorization?.split(' ')[1] || tokenDoc?.accessToken;
 
     if (!igAccountId || !accessToken) {
         return res.status(400).json({ error: 'Missing igAccountId or access token' });
@@ -251,7 +268,9 @@ exports.getInstagramAnalytics = async (req, res) => {
 
 exports.getFacebookAnalytics = async (req, res) => {
     const { pageId } = req.query;
-    const accessToken = req.headers.authorization?.split(' ')[1] || global.metaToken;
+    const DEFAULT_USER_ID = 'default-user-id';
+    const tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
+    const accessToken = req.headers.authorization?.split(' ')[1] || tokenDoc?.accessToken;
 
     if (!pageId || !accessToken) {
         return res.status(400).json({ error: 'Missing pageId or access token' });
@@ -278,14 +297,16 @@ exports.getFacebookAnalytics = async (req, res) => {
 };
 
 exports.getStatus = async (req, res) => {
-    if (global.metaToken && !global.igAccountId) {
-        await resolveIGAccount(global.metaToken);
+    const DEFAULT_USER_ID = 'default-user-id';
+    const tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
+    if (tokenDoc?.accessToken && !tokenDoc?.platformAccountId) {
+        await resolveIGAccount(tokenDoc?.accessToken);
     }
     res.json({ 
-        connected: !!global.metaToken,
-        username: global.igUsername,
-        name: global.igName,
-        avatar: global.igAvatar
+        connected: !!tokenDoc?.accessToken,
+        username: tokenDoc?.extraData?.igUsername,
+        name: tokenDoc?.platformAccountName,
+        avatar: tokenDoc?.profileAvatar
     });
 };
 
@@ -332,8 +353,9 @@ const pollStatus = async (igAccountId, creationId, accessToken, isVideo = false)
     throw new Error('Video processing timed out on Meta side');
 };
 
-exports.publishToInstagram = async (mediaUrls, metadata) => {
-    if (!global.metaToken || !global.igAccountId) throw new Error('Instagram not connected');
+exports.publishToInstagram = async (mediaUrls, metadata, userId = 'default-user-id') => {
+    const tokenDoc = await Token.findOne({ userId, platform: 'meta' });
+    if (!tokenDoc?.accessToken || !tokenDoc?.platformAccountId) throw new Error('Instagram not connected');
     
     // Convert to array if it is a single string (backwards compatibility)
     const urls = Array.isArray(mediaUrls) ? mediaUrls : [mediaUrls];
@@ -350,8 +372,8 @@ exports.publishToInstagram = async (mediaUrls, metadata) => {
     console.log(`[INSTAGRAM] Publishing ${urls.length} item(s) to Instagram as ${postType}...`);
 
     try {
-        const accessToken = global.metaToken;
-        const igId = global.igAccountId;
+        const accessToken = tokenDoc?.accessToken;
+        const igId = tokenDoc?.platformAccountId;
 
         // PREPARE CAPTION (Stories don't support captions via API)
         const titlePart = metadata.title ? `${metadata.title.toUpperCase()}\n\n` : '';
@@ -506,13 +528,8 @@ exports.publishToInstagram = async (mediaUrls, metadata) => {
     }
 };
 
-exports.disconnect = (req, res) => {
-    global.metaToken = null;
-    global.igAccountId = null;
-    global.igUsername = null;
-    global.igName = null;
-    global.igAvatar = null;
-    const { saveSessions } = require('../utils/sessionHelper');
-    saveSessions();
+exports.disconnect = async (req, res) => {
+    const DEFAULT_USER_ID = 'default-user-id';
+    await Token.deleteOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
     res.json({ success: true, message: 'Meta disconnected' });
 };
