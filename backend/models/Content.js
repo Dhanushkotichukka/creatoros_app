@@ -1,56 +1,43 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-const User = require('./User');
+const mongoose = require('mongoose');
 
-const Content = sequelize.define('Content', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true,
+const contentSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
   },
   title: {
-    type: DataTypes.STRING,
+    type: String,
   },
   description: {
-    type: DataTypes.TEXT,
+    type: String,
   },
   contentType: {
-    type: DataTypes.ENUM('video', 'image', 'post', 'short', 'reel'),
-    allowNull: false,
+    type: String,
+    enum: ['video', 'image', 'post', 'short', 'reel', 'carousel'],
   },
   platforms: {
-    type: DataTypes.JSON,
-    defaultValue: [],
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
   },
   status: {
-    type: DataTypes.ENUM('draft', 'scheduled', 'published', 'failed'),
-    defaultValue: 'draft',
+    type: String,
+    enum: ['draft', 'scheduled', 'published', 'failed'],
+    default: 'draft',
   },
-  mediaUrl: {
-    type: DataTypes.STRING,
-  },
-  thumbnailUrl: {
-    type: DataTypes.STRING,
-  },
-  scheduledAt: {
-    type: DataTypes.DATE,
-  },
-  publishedAt: {
-    type: DataTypes.DATE,
-  },
+  mediaUrl: { type: String },
+  thumbnailUrl: { type: String },
+  scheduledAt: { type: Date },
+  publishedAt: { type: Date },
   aiMetadata: {
-    type: DataTypes.JSON,
-    defaultValue: {}, // stores things like AI suggestions, score, scripts used
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
   },
   platformMetadata: {
-    type: DataTypes.JSON,
-    defaultValue: {}, // stores platform-specific IDs, engagement stats, etc.
-  }
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
+  },
 }, {
   timestamps: true,
 });
 
-User.hasMany(Content, { foreignKey: 'userId', as: 'contents' });
-Content.belongsTo(User, { foreignKey: 'userId' });
-
-module.exports = Content;
+module.exports = mongoose.model('Content', contentSchema);

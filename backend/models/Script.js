@@ -1,40 +1,24 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const Script = sequelize.define('Script', {
-    id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        primaryKey: true,
-    },
+const scriptSchema = new mongoose.Schema({
     topicTitle: {
-        type: DataTypes.STRING,
-        allowNull: false,
+        type: String,
+        required: true,
     },
     folder: {
-        type: DataTypes.STRING,
-        defaultValue: 'general'
+        type: String,
+        default: 'general',
     },
-    hook: {
-        type: DataTypes.TEXT,
-    },
-    mainContent: {
-        type: DataTypes.TEXT,
-    },
-    callToAction: {
-        type: DataTypes.TEXT,
-    },
+    hook: { type: String },
+    mainContent: { type: String },
+    callToAction: { type: String },
     sourceDetails: {
-        type: DataTypes.JSON, // Will store { type: 'YouTube', url: '...', views: '...', date: '...' }
+        type: mongoose.Schema.Types.Mixed, // { type: 'YouTube', url: '...', views: '...', date: '...' }
     },
-    trendReason: {
-        type: DataTypes.TEXT,
-    },
-    aiRating: {
-        type: DataTypes.FLOAT,
-    }
+    trendReason: { type: String },
+    aiRating: { type: Number },
 }, {
     timestamps: true,
 });
 
-module.exports = Script;
+module.exports = mongoose.model('Script', scriptSchema);

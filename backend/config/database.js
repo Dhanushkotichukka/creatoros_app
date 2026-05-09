@@ -1,15 +1,18 @@
-const { Sequelize } = require('sequelize');
+const mongoose = require('mongoose');
 
-// Mocked locally for now with SQLite if Postgres URL is not provided
-const sequelize = process.env.DATABASE_URL 
-  ? new Sequelize(process.env.DATABASE_URL, {
-      dialect: 'postgres',
-      logging: false,
-    })
-  : new Sequelize({
-      dialect: 'sqlite',
-      storage: './creatoros-local.sqlite',
-      logging: false,
-    });
+const connectDatabase = async () => {
+  try {
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+      throw new Error('MONGODB_URI environment variable is missing');
+    }
+    
+    await mongoose.connect(uri);
+    console.log('[DB] MongoDB connected successfully.');
+  } catch (error) {
+    console.error('[DB] MongoDB connection error:', error.message);
+    process.exit(1);
+  }
+};
 
-module.exports = sequelize;
+module.exports = connectDatabase;

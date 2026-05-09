@@ -1,43 +1,30 @@
-const { DataTypes } = require('sequelize');
-const sequelize = require('../config/database');
-const Content = require('./Content');
+const mongoose = require('mongoose');
 
-const Analytics = sequelize.define('Analytics', {
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true,
+const analyticsSchema = new mongoose.Schema({
+  contentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Content',
   },
   platform: {
-    type: DataTypes.ENUM('youtube', 'meta', 'linkedin'),
-    allowNull: false,
+    type: String,
+    enum: ['youtube', 'meta', 'linkedin'],
+    required: true,
   },
-  date: {
-    type: DataTypes.DATEONLY,
-    allowNull: false,
-  },
-  views: { type: DataTypes.INTEGER, defaultValue: 0 },
-  likes: { type: DataTypes.INTEGER, defaultValue: 0 },
-  comments: { type: DataTypes.INTEGER, defaultValue: 0 },
-  shares: { type: DataTypes.INTEGER, defaultValue: 0 },
-  watchTimeHours: { type: DataTypes.FLOAT, defaultValue: 0 },
-  ctr: { type: DataTypes.FLOAT, defaultValue: 0 },
-  retentionRate: { type: DataTypes.FLOAT, defaultValue: 0 },
-  impressions: { type: DataTypes.INTEGER, defaultValue: 0 },
-  platformContentId: { 
-    type: DataTypes.STRING, 
-  }
+  date: { type: Date, required: true },
+  views: { type: Number, default: 0 },
+  likes: { type: Number, default: 0 },
+  comments: { type: Number, default: 0 },
+  shares: { type: Number, default: 0 },
+  watchTimeHours: { type: Number, default: 0 },
+  ctr: { type: Number, default: 0 },
+  retentionRate: { type: Number, default: 0 },
+  impressions: { type: Number, default: 0 },
+  platformContentId: { type: String },
 }, {
   timestamps: true,
-  indexes: [
-    {
-      unique: false,
-      fields: ['contentId', 'platform', 'date']
-    }
-  ]
 });
 
-Content.hasMany(Analytics, { foreignKey: 'contentId', as: 'analytics' });
-Analytics.belongsTo(Content, { foreignKey: 'contentId' });
+// Index for efficient analytics queries
+analyticsSchema.index({ contentId: 1, platform: 1, date: 1 });
 
-module.exports = Analytics;
+module.exports = mongoose.model('Analytics', analyticsSchema);
