@@ -1,12 +1,17 @@
-const connectDatabase = require('../config/database');
+const connectDB = require('../config/database');
 const User = require('./User');
 const Token = require('./Token');
 const Content = require('./Content');
 const Analytics = require('./Analytics');
 const Script = require('./Script');
 
+const syncDatabase = async () => {
+    // Connect to MongoDB
+    await connectDB();
+};
+
 module.exports = {
-    connectDatabase,
+    syncDatabase,
     User,
     Token,
     Content,

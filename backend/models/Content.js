@@ -1,9 +1,14 @@
 const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
 const contentSchema = new mongoose.Schema({
+  _id: {
+    type: String,
+    default: uuidv4
+  },
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
+    ref: 'User'
   },
   title: {
     type: String,
@@ -14,9 +19,10 @@ const contentSchema = new mongoose.Schema({
   contentType: {
     type: String,
     enum: ['video', 'image', 'post', 'short', 'reel', 'carousel'],
+    required: true,
   },
   platforms: {
-    type: mongoose.Schema.Types.Mixed,
+    type: Object,
     default: {},
   },
   status: {
@@ -24,20 +30,29 @@ const contentSchema = new mongoose.Schema({
     enum: ['draft', 'scheduled', 'published', 'failed'],
     default: 'draft',
   },
-  mediaUrl: { type: String },
-  thumbnailUrl: { type: String },
-  scheduledAt: { type: Date },
-  publishedAt: { type: Date },
+  mediaUrl: {
+    type: String,
+  },
+  thumbnailUrl: {
+    type: String,
+  },
+  scheduledAt: {
+    type: Date,
+  },
+  publishedAt: {
+    type: Date,
+  },
   aiMetadata: {
-    type: mongoose.Schema.Types.Mixed,
+    type: Object,
     default: {},
   },
   platformMetadata: {
-    type: mongoose.Schema.Types.Mixed,
+    type: Object,
     default: {},
-  },
+  }
 }, {
   timestamps: true,
 });
 
-module.exports = mongoose.model('Content', contentSchema);
+const Content = mongoose.model('Content', contentSchema);
+module.exports = Content;

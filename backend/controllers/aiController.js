@@ -60,7 +60,11 @@ const formatViews = (v) => {
 
 // ─── RSS VIDEO FETCHER (Quota-free real channel data) ─────────────────
 const fetchVideosViaRSS = async (channelId) => {
-    const cId = channelId || global.ytChannelId || FALLBACK_CHANNEL_ID;
+    let cId = channelId || FALLBACK_CHANNEL_ID;
+    if (!channelId) {
+        const ytToken = await require('../models/Token').findOne({ userId: 'default-user-id', platform: 'youtube' });
+        cId = ytToken?.platformAccountId || FALLBACK_CHANNEL_ID;
+    }
     try {
         console.log(`[RSS] Scraping real videos for channel: ${cId}`);
         const url = `https://www.youtube.com/feeds/videos.xml?channel_id=${cId}`;
@@ -201,14 +205,14 @@ exports.analyzeChannelInsights = async (req, res) => {
         try {
             const youtube = await youtubeController.getYouTubeClient();
             if (youtube) {
+                const ytToken = await require('../models/Token').findOne({ userId: 'default-user-id', platform: 'youtube' });
                 const channelRes = await youtube.channels.list({ part: 'snippet,contentDetails', mine: true });
                 if (channelRes.data.items?.length) {
                     const ch = channelRes.data.items[0];
                     // Cache channel ID
-                    if (!global.ytChannelId) {
-                        global.ytChannelId = ch.id;
-                        const { saveSessions } = require('../utils/sessionHelper');
-                        saveSessions();
+                    if (ytToken && !ytToken.platformAccountId) {
+                        ytToken.platformAccountId = ch.id;
+                        await ytToken.save();
                     }
                     const plId = ch.contentDetails.relatedPlaylists.uploads;
                     const vres = await youtube.playlistItems.list({ part: 'snippet', playlistId: plId, maxResults: 15 });
@@ -226,7 +230,8 @@ exports.analyzeChannelInsights = async (req, res) => {
 
         // Step 2: RSS fallback if API gave nothing
         if (videos.length === 0) {
-            videos = await fetchVideosViaRSS(global.ytChannelId || FALLBACK_CHANNEL_ID);
+            const ytToken = await require('../models/Token').findOne({ userId: 'default-user-id', platform: 'youtube' });
+            videos = await fetchVideosViaRSS(ytToken?.platformAccountId || FALLBACK_CHANNEL_ID);
         }
 
         // Step 3: Analyze with AI

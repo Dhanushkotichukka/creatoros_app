@@ -4,6 +4,7 @@ const axios = require('axios');
 const Parser = require('rss-parser');
 const rssParser = new Parser();
 const youtubeController = require('../controllers/youtubeController');
+const Token = require('../models/Token');
 
 // ─── KNOWN CHANNEL FALLBACK ──────────────────────────────────────────
 // Reliable fallback channel for RSS (MKBHD) to prevent empty data states
@@ -141,28 +142,38 @@ const fetchVideosViaRSS = async (channelId) => {
 
 // ─── PLATFORM STATUS ──────────────────────────────────────────────────
 router.get('/platforms/status', async (req, res) => {
+    const DEFAULT_USER_ID = 'default-user-id';
+    const ytToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'youtube' });
+    const metaToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
+    const liToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
+
     res.json({
         youtube: {
-            connected: !!global.youtubeToken,
-            name: global.ytChannelName || FALLBACK_CHANNEL_NAME,
-            avatar: global.ytAvatar || null
+            connected: !!ytToken,
+            name: ytToken?.platformAccountName || FALLBACK_CHANNEL_NAME,
+            avatar: ytToken?.profileAvatar || null
         },
         instagram: {
-            connected: !!global.metaToken,
-            name: global.igUsername ? '@' + global.igUsername : (global.igName || null),
-            avatar: global.igAvatar || null
+            connected: !!metaToken,
+            name: metaToken?.extraData?.igUsername ? '@' + metaToken.extraData.igUsername : (metaToken?.platformAccountName || null),
+            avatar: metaToken?.profileAvatar || null
         },
         linkedin: {
-            connected: !!global.linkedinToken,
-            name: global.linkedinName || null,
-            avatar: global.linkedinAvatar || null
+            connected: !!liToken,
+            name: liToken?.platformAccountName || null,
+            avatar: liToken?.profileAvatar || null
         }
     });
 });
 
 // ─── ANALYTICS OVERVIEW ───────────────────────────────────────────────
 router.get('/overview', async (req, res) => {
-    const cacheKey = `overview_${global.ytChannelId || 'none'}_${global.igAccountId || 'none'}_${global.linkedinName || 'none'}`;
+    const DEFAULT_USER_ID = 'default-user-id';
+    const ytToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'youtube' });
+    const metaToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
+    const liToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
+
+    const cacheKey = `overview_${ytToken?.platformAccountId || 'none'}_${metaToken?.platformAccountId || 'none'}_${liToken?.platformAccountName || 'none'}`;
     const cached = getCached(cacheKey);
     if (cached && !req.query.refresh) {
         console.log('[CACHE] Serving /overview from cache.');
@@ -179,12 +190,12 @@ router.get('/overview', async (req, res) => {
     let realtimeData = { labels: [], values: [] };
 
     // ── 1. YOUTUBE ────────────────────────────────────────────────────
-    if (global.youtubeToken) {
+    if (ytToken?.accessToken) {
         let ytPlatform = { 
             name: 'YouTube', isConnected: true, 
             views: 'Synced', subscribers: 'Synced', videos: 'Synced',
-            channelName: global.ytChannelName || 'Connected YouTube',
-            channelAvatar: global.ytAvatar
+            channelName: ytToken?.platformAccountName || 'Connected YouTube',
+            channelAvatar: ytToken?.profileAvatar
         };
 
         try {
@@ -249,8 +260,8 @@ router.get('/overview', async (req, res) => {
         } catch (apiError) {
             console.error('[YT OVERVIEW ERROR]', apiError.message);
             // Fallback: If API fails, try to fetch some data via RSS if we have a channel ID
-            if (global.ytChannelId) {
-                const rssVideos = await fetchVideosViaRSS(global.ytChannelId);
+            if (ytToken?.platformAccountId) {
+                const rssVideos = await fetchVideosViaRSS(ytToken.platformAccountId);
                 topContent = [...topContent, ...rssVideos];
             }
         }
@@ -258,17 +269,17 @@ router.get('/overview', async (req, res) => {
     }
 
     // ── 2. INSTAGRAM ──────────────────────────────────────────────────
-    if (global.metaToken && global.igAccountId) {
+    if (metaToken?.accessToken && metaToken?.platformAccountId) {
         let igPlatform = { 
             name: 'Instagram', isConnected: true, 
             views: 'Synced', subscribers: 'Synced', videos: 'Synced',
-            channelName: global.igUsername ? '@' + global.igUsername : (global.igName || 'Connected Instagram'),
-            channelAvatar: global.igAvatar
+            channelName: metaToken?.extraData?.igUsername ? '@' + metaToken.extraData.igUsername : (metaToken?.platformAccountName || 'Connected Instagram'),
+            channelAvatar: metaToken?.profileAvatar
         };
 
         try {
             const igRes = await axios.get(
-                `https://graph.facebook.com/v19.0/${global.igAccountId}?fields=followers_count,media_count,username,profile_picture_url,media{id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count}&access_token=${global.metaToken}`
+                `https://graph.facebook.com/v19.0/${metaToken.platformAccountId}?fields=followers_count,media_count,username,profile_picture_url,media{id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count}&access_token=${metaToken.accessToken}`
             );
             const d = igRes.data;
             const reach = (d.media_count || 0) * 125;
@@ -303,12 +314,12 @@ router.get('/overview', async (req, res) => {
     }
 
     // ── 3. LINKEDIN ───────────────────────────────────────────────────
-    if (global.linkedinToken) {
+    if (liToken?.accessToken) {
         let liPlatform = {
             name: 'LinkedIn', isConnected: true,
             views: 'Synced', subscribers: 'Synced', videos: 'Synced',
-            channelName: global.linkedinName || 'Connected LinkedIn',
-            channelAvatar: global.linkedinAvatar
+            channelName: liToken?.platformAccountName || 'Connected LinkedIn',
+            channelAvatar: liToken?.profileAvatar
         };
 
         const liConnections = 1450;
@@ -480,7 +491,12 @@ router.get('/:platform', async (req, res) => {
     const { platform } = req.params;
     if (['platforms', 'overview', 'video'].includes(platform)) return res.status(404).end();
 
-    const platCacheKey = `platform_${platform.toLowerCase()}_${global.ytChannelId || 'none'}_${global.igAccountId || 'none'}_${global.linkedinName || 'none'}`;
+    const DEFAULT_USER_ID = 'default-user-id';
+    const ytToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'youtube' });
+    const metaToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
+    const liToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
+
+    const platCacheKey = `platform_${platform.toLowerCase()}_${ytToken?.platformAccountId || 'none'}_${metaToken?.platformAccountId || 'none'}_${liToken?.platformAccountName || 'none'}`;
     const platCached = getCached(platCacheKey);
     if (platCached && !req.query.refresh) {
         console.log(`[CACHE] Serving /${platform} from cache.`);
@@ -592,10 +608,10 @@ router.get('/:platform', async (req, res) => {
         } catch (e) {
             console.error('[YT DEEP ERROR]', e.message);
         }
-    } else if (platform.toLowerCase() === 'instagram' && global.metaToken && global.igAccountId) {
+    } else if (platform.toLowerCase() === 'instagram' && metaToken?.accessToken && metaToken?.platformAccountId) {
         try {
             const igRes = await axios.get(
-                `https://graph.facebook.com/v19.0/${global.igAccountId}?fields=followers_count,media_count,username,name,profile_picture_url,media{id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count}&access_token=${global.metaToken}`
+                `https://graph.facebook.com/v19.0/${metaToken.platformAccountId}?fields=followers_count,media_count,username,name,profile_picture_url,media{id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count}&access_token=${metaToken.accessToken}`
             );
             const d = igRes.data;
             const followers = d.followers_count || 0;
@@ -665,15 +681,15 @@ router.get('/:platform', async (req, res) => {
         } catch (e) {
             console.warn('[IG DEEP ERROR]', e.message);
         }
-    } else if (platform.toLowerCase() === 'linkedin' && global.linkedinToken) {
+    } else if (platform.toLowerCase() === 'linkedin' && liToken?.accessToken) {
         try {
             const connections = 1450;
             const impressions = 12500;
             const engRate = '4.2';
 
             platformData = {
-                name: global.linkedinName || 'LinkedIn Profile',
-                avatar: global.linkedinAvatar,
+                name: liToken?.platformAccountName || 'LinkedIn Profile',
+                avatar: liToken?.profileAvatar,
                 subscribers: formatViews(connections),
                 subscribersNum: connections,
                 totalViews: formatViews(impressions),
@@ -1025,7 +1041,10 @@ router.post('/insights', async (req, res) => {
                 }
             }
         } else {
-            const overviewKey = `overview_${global.youtubeToken ? 'yt' : 'none'}_${global.metaToken ? 'ig' : 'none'}`;
+            const DEFAULT_USER_ID = 'default-user-id';
+            const ytToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'youtube' });
+            const metaToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
+            const overviewKey = `overview_${ytToken?.accessToken ? 'yt' : 'none'}_${metaToken?.accessToken ? 'ig' : 'none'}`;
             sourceData = getCached(overviewKey) || {};
 
             if (sourceData.topContent) {
@@ -1036,7 +1055,8 @@ router.post('/insights', async (req, res) => {
         }
 
         // ALWAYS try to fetch real YT data if we have a token and we are on YT or Overview
-        if (global.youtubeToken && (!isPlatformSpecific || platformQuery.toLowerCase() === 'youtube')) {
+        const ytToken = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'youtube' });
+        if (ytToken?.accessToken && (!isPlatformSpecific || platformQuery.toLowerCase() === 'youtube')) {
             try {
                 // Fetch missing metrics directly from YouTube Analytics API
                 if (ytRows.length === 0) {
@@ -1258,7 +1278,7 @@ router.post('/insights', async (req, res) => {
         const growthScore    = Math.max(0, Math.min(100, 50 + growthPct));
         const perfGapRatio   = lowAvgRetention > 0 ? (topAvgRetention / lowAvgRetention).toFixed(1) : 'N/A';
 
-        const channelName = global.ytChannelName || 'Your Channel';
+        const channelName = ytToken?.platformAccountName || 'Your Channel';
 
         // ── 4. Build compact summary (this is all we send to AI) ─────────
         const summary = {
@@ -1307,7 +1327,10 @@ router.post('/insights', async (req, res) => {
 
         // ── Determine Confidence and CompareText ─────────────────────────
         let confidence = 'Low';
-        if (global.youtubeToken || global.metaToken) {
+        const ytTokenExists = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'youtube' });
+        const metaTokenExists = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
+
+        if (ytTokenExists?.accessToken || metaTokenExists?.accessToken) {
             confidence = 'High';
         } else if (ytRows.length > 0 || topContentSample.length > 0) {
             confidence = 'Medium';
