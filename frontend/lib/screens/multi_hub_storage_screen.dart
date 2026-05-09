@@ -110,7 +110,7 @@ class _MultiHubStorageScreenState extends State<MultiHubStorageScreen> {
     if (_isCloud(file['storage'] ?? '')) {
       return ApiService.getStorageDownloadUrl(file['name'], file['storage']);
     }
-    return file['url'] ?? 'http://localhost:3000/uploads/${file['name']}';
+    return file['url'] ?? 'https://creatoros-backend-rb5b.onrender.com/uploads/${file['name']}';
   }
 
   // ── Open media viewer ─────────────────────────────────────────────────────────

@@ -66,7 +66,7 @@ router.post('/import-from-url', async (req, res) => {
       const localDir = path.join(__dirname, '../uploads');
       if (!fs.existsSync(localDir)) fs.mkdirSync(localDir, { recursive: true });
       fs.writeFileSync(path.join(localDir, safeName), buffer);
-      storageUrl = `http://127.0.0.1:3000/uploads/${safeName}`;
+      storageUrl = `https://creatoros-backend-rb5b.onrender.com/uploads/${safeName}`;
       storageLabel = 'Local';
     }
 

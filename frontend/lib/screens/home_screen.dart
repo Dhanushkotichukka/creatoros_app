@@ -13,9 +13,11 @@ import '../widgets/home/home_schedule_card.dart';
 import '../widgets/home/home_creator_score.dart';
 import '../widgets/home/home_recent_activity.dart';
 import 'profile_screen.dart';
+import 'edit_profile_screen.dart';
 import '../services/api_service.dart';
 import 'package:provider/provider.dart';
 import '../providers/view_state_provider.dart';
+import '../providers/auth_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -257,10 +259,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   AppBar _buildAppBar(BuildContext context, AppColors c, Set<PlatformType> connectedTypes) {
+    final user = context.watch<AuthProvider>().currentUser;
+    final String fullName = user?['name'] ?? 'Creator';
+    final String firstName = fullName.split(' ').first;
+    final String? photoUrl = user?['profilePicture'];
+
     return AppBar(
       backgroundColor: c.background,
       elevation: 0,
-      title: Text('Hi, Vasanth 👋', style: Theme.of(context).textTheme.titleLarge),
+      title: Text('Hi, $firstName 👋', style: Theme.of(context).textTheme.titleLarge),
       actions: [
         IconButton(icon: const Icon(Icons.search), onPressed: () {}),
         Padding(
@@ -292,7 +299,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: GestureDetector(
             onTap: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const ProfileScreen())),
-            child: const _ProfileAvatar(),
+            child: _ProfileAvatar(photoUrl: photoUrl, name: fullName),
           ),
         ),
       ],
@@ -501,7 +508,9 @@ class _Skeleton extends StatelessWidget {
 
 // ── Profile Avatar ────────────────────────────────────────────────────────────
 class _ProfileAvatar extends StatefulWidget {
-  const _ProfileAvatar();
+  final String? photoUrl;
+  final String name;
+  const _ProfileAvatar({this.photoUrl, this.name = 'C'});
   @override
   State<_ProfileAvatar> createState() => _ProfileAvatarState();
 }
@@ -520,6 +529,7 @@ class _ProfileAvatarState extends State<_ProfileAvatar>
   void dispose() { _c.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) {
+    final initial = widget.name.isNotEmpty ? widget.name[0].toUpperCase() : 'C';
     return AnimatedBuilder(
       animation: _p,
       builder: (_, __) => Stack(clipBehavior: Clip.none, children: [
@@ -527,25 +537,28 @@ class _ProfileAvatarState extends State<_ProfileAvatar>
           width: 36, height: 36,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: LinearGradient(colors: [
+            gradient: widget.photoUrl == null ? LinearGradient(colors: [
               Theme.of(context).colorScheme.primary,
               Theme.of(context).colorScheme.primary.withOpacity(0.7),
-            ], begin: Alignment.topLeft, end: Alignment.bottomRight),
+            ], begin: Alignment.topLeft, end: Alignment.bottomRight) : null,
             boxShadow: [BoxShadow(
               color: Theme.of(context).colorScheme.primary.withOpacity(_p.value * 0.4),
               blurRadius: 10 * _p.value, spreadRadius: _p.value,
             )],
           ),
-          child: const Center(child: Text('V', style: TextStyle(
-            color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold))),
+          child: widget.photoUrl != null
+              ? ClipOval(
+                  child: Image.network(
+                    widget.photoUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Center(
+                      child: Text(initial, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                )
+              : Center(child: Text(initial, style: const TextStyle(
+                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold))),
         ),
-        Positioned(top: -2, right: -2, child: Container(
-          width: 12, height: 12,
-          decoration: BoxDecoration(
-            color: Colors.redAccent, shape: BoxShape.circle,
-            border: Border.all(color: Theme.of(context).scaffoldBackgroundColor, width: 2),
-          ),
-        )),
       ]),
     );
   }

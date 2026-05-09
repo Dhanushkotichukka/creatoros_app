@@ -9,7 +9,7 @@ const ipv4Agent = new https.Agent({ family: 4, keepAlive: true });
 
 const CLIENT_ID = process.env.LINKEDIN_CLIENT_ID;
 const CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
-const REDIRECT_URI = 'http://localhost:3000/auth/linkedin/callback';
+const REDIRECT_URI = 'https://creatoros-backend-rb5b.onrender.com/auth/linkedin/callback';
 
 exports.getLoginUrl = (req, res) => {
     const scopes = ['openid', 'profile', 'email', 'w_member_social'];
@@ -22,7 +22,7 @@ const decodeJWT = (token) => {
     try {
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(Buffer.from(base64, 'base64').toString().split('').map(function(c) {
+        const jsonPayload = decodeURIComponent(Buffer.from(base64, 'base64').toString().split('').map(function (c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         return JSON.parse(jsonPayload);
@@ -33,15 +33,15 @@ const decodeJWT = (token) => {
 
 exports.handleCallback = async (req, res) => {
     const { code, error, error_description } = req.query;
-    
+
     if (error) {
         return res.status(400).send(`LinkedIn OAuth Error: ${error_description || error}`);
     }
-    
+
     if (!code) return res.status(400).send('No code provided');
 
     try {
-        const tokenResponse = await axios.post('https://www.linkedin.com/oauth/v2/accessToken', 
+        const tokenResponse = await axios.post('https://www.linkedin.com/oauth/v2/accessToken',
             new URLSearchParams({
                 grant_type: 'authorization_code',
                 code: code,
@@ -62,7 +62,7 @@ exports.handleCallback = async (req, res) => {
                 global.linkedinUserUrn = `urn:li:person:${decoded.sub}`;
                 global.linkedinName = decoded.name || (decoded.given_name ? `${decoded.given_name} ${decoded.family_name || ''}` : null);
                 global.linkedinAvatar = decoded.picture;
-                
+
                 const { saveSessions } = require('../utils/sessionHelper');
                 saveSessions();
                 console.log('LinkedIn Profile loaded from ID Token.');
@@ -78,7 +78,7 @@ exports.handleCallback = async (req, res) => {
                 global.linkedinUserUrn = `urn:li:person:${profile.sub}`;
                 global.linkedinName = profile.name;
                 global.linkedinAvatar = profile.picture;
-                
+
                 const { saveSessions } = require('../utils/sessionHelper');
                 saveSessions();
             } catch (profileErr) {
@@ -89,7 +89,7 @@ exports.handleCallback = async (req, res) => {
                     });
                     global.linkedinUserUrn = `urn:li:person:${legacyRes.data.id}`;
                     global.linkedinName = `${legacyRes.data.localizedFirstName || ''} ${legacyRes.data.localizedLastName || ''}`.trim();
-                } catch (legacyErr) {}
+                } catch (legacyErr) { }
             }
         }
 
@@ -153,8 +153,8 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
     // ── Determine post type up front ─────────────────────────────────────────
     const postTypeLabel = paths.length === 0 ? 'TEXT-ONLY'
         : videosCount > 0 ? 'VIDEO'
-        : paths.length > 1 ? `CAROUSEL (${paths.length} images)`
-        : 'SINGLE IMAGE';
+            : paths.length > 1 ? `CAROUSEL (${paths.length} images)`
+                : 'SINGLE IMAGE';
     console.log(`[LINKEDIN] Post type: ${postTypeLabel}`);
 
     // ── Common headers ────────────────────────────────────────────────────────
@@ -165,11 +165,11 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
         'LinkedIn-Version': '202501',
         'Content-Type': 'application/json',
     };
-    
+
     // Legacy v2 endpoints do not support the LinkedIn-Version header
     const legacyHeaders = { ...commonHeaders };
     delete legacyHeaders['LinkedIn-Version'];
-    
+
     // Global axios config for this request chain
     const axiosOpts = { httpsAgent: ipv4Agent, timeout: 60000 };
 
@@ -273,13 +273,13 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
             if (!value) throw new Error('Empty init body');
 
             uploadUrl = value.uploadUrl || value.uploadInstructions?.[0]?.uploadUrl;
-            assetUrn  = isVid ? value.video : value.image;
+            assetUrn = isVid ? value.video : value.image;
 
             if (!uploadUrl || !assetUrn) throw new Error('No uploadUrl/assetUrn in REST response');
             console.log(`[LINKEDIN] [T1] ✅ Init OK. Asset: ${assetUrn}`);
 
         } catch (restErr) {
-            const code   = restErr.code;
+            const code = restErr.code;
             const status = restErr.response?.status;
             console.warn(`[LINKEDIN] [T1] ⚠️  REST API failed (${code || status}). Trying legacy /v2/assets...`);
 
@@ -311,7 +311,7 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
                 if (!regValue) throw new Error('Empty legacy register response');
 
                 // Legacy response schema
-                assetUrn  = regValue.asset;
+                assetUrn = regValue.asset;
                 uploadUrl = regValue.uploadMechanism?.['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest']?.uploadUrl;
 
                 if (!uploadUrl || !assetUrn) {
@@ -321,7 +321,7 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
                 console.log(`[LINKEDIN] [T2] ✅ Legacy init OK. Asset: ${assetUrn}`);
 
             } catch (legacyErr) {
-                const lcode   = legacyErr.code;
+                const lcode = legacyErr.code;
                 const lstatus = legacyErr.response?.status;
                 console.error(`[LINKEDIN] [T2] ❌ Legacy also failed (${lcode || lstatus}).`);
                 console.error(`[LINKEDIN] [T2] Detail:`, JSON.stringify(legacyErr.response?.data || legacyErr.message));
@@ -333,7 +333,7 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
                     // is shared as a link card so the post still has media context.
                     // ═══════════════════════════════════════════════════════════════
                     const pathIndex = paths.indexOf(mediaPath);
-                    const videoUrl  = originalUrls[pathIndex] || originalUrls[0];
+                    const videoUrl = originalUrls[pathIndex] || originalUrls[0];
                     if (videoUrl) {
                         return await postVideoAsLink(videoUrl);
                     }
@@ -347,7 +347,7 @@ exports.publishToLinkedIn = async (localMediaPaths, metadata, originalUrls = [])
         // ── Binary upload (same for both tiers) ──────────────────────────────
         console.log(`[LINKEDIN] Step 2: Uploading binary...`);
         try {
-            const stats  = fs.statSync(mediaPath);
+            const stats = fs.statSync(mediaPath);
             const stream = fs.createReadStream(mediaPath);
             await axios.put(uploadUrl, stream, {
                 headers: { 'Content-Type': 'application/octet-stream', 'Content-Length': stats.size },
@@ -460,12 +460,12 @@ exports.getLinkedInAnalytics = async (req, res) => {
     try {
         let stats = { platform: 'LinkedIn', followerStats: {}, engagementStats: {} };
         const apiHeaders = { 'Authorization': `Bearer ${accessToken}`, 'LinkedIn-Version': '202602', 'X-Restli-Protocol-Version': '2.0.0' };
-        
+
         if (authorUrn.includes(':organization:')) {
             const response = await axios.get(`https://api.linkedin.com/rest/organizationalEntityFollowerStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(authorUrn)}`, { headers: apiHeaders });
             stats.followerStats = response.data;
         } else {
-            stats.followerStats = { followersCount: 0 }; 
+            stats.followerStats = { followersCount: 0 };
         }
         res.json(stats);
     } catch (error) {
@@ -475,26 +475,26 @@ exports.getLinkedInAnalytics = async (req, res) => {
 
 exports.fetchRecentPosts = async (accessToken, authorUrn) => {
     try {
-        const apiHeaders = { 
-            'Authorization': `Bearer ${accessToken}`, 
+        const apiHeaders = {
+            'Authorization': `Bearer ${accessToken}`,
             'X-Restli-Protocol-Version': '2.0.0'
         };
         let posts = [];
         try {
             // Tier 1: Try UGC Posts API (v2)
-            const response = await axios.get(`https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${encodeURIComponent(authorUrn)})&count=10`, { 
-                headers: apiHeaders, 
+            const response = await axios.get(`https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List(${encodeURIComponent(authorUrn)})&count=10`, {
+                headers: apiHeaders,
                 timeout: 10000,
-                httpsAgent: ipv4Agent 
+                httpsAgent: ipv4Agent
             });
             posts = response.data.elements || [];
         } catch (ugcErr) {
             try {
                 // Tier 2: Try older Shares API (v2)
-                const shareRes = await axios.get(`https://api.linkedin.com/v2/shares?q=owners&owners=List(${encodeURIComponent(authorUrn)})&count=10`, { 
-                    headers: apiHeaders, 
+                const shareRes = await axios.get(`https://api.linkedin.com/v2/shares?q=owners&owners=List(${encodeURIComponent(authorUrn)})&count=10`, {
+                    headers: apiHeaders,
                     timeout: 10000,
-                    httpsAgent: ipv4Agent 
+                    httpsAgent: ipv4Agent
                 });
                 posts = shareRes.data.elements || [];
             } catch (shareErr) {
@@ -517,7 +517,7 @@ exports.fetchRecentPosts = async (accessToken, authorUrn) => {
                 description: desc,
                 platform: 'LinkedIn',
                 type: 'post',
-                publishedAt: p.firstPublishedAt ? new Date(p.firstPublishedAt) : (p.created?.time ? new Date(p.created.time) : new Date()), 
+                publishedAt: p.firstPublishedAt ? new Date(p.firstPublishedAt) : (p.created?.time ? new Date(p.created.time) : new Date()),
                 thumbnail: 'https://cdn-icons-png.flaticon.com/512/174/174857.png'
             };
         });

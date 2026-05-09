@@ -850,7 +850,7 @@ const callOpenRouterFallback = async (system, user) => {
     }, {
         headers: {
             'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            'HTTP-Referer': 'http://localhost:3000',
+            'HTTP-Referer': 'https://creatoros-backend-rb5b.onrender.com',
             'X-Title': 'CreatorOS'
         },
         timeout: 15000

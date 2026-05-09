@@ -24,7 +24,7 @@ class _AIScriptLibraryState extends State<AIScriptLibrary> {
   Future<void> _fetchScripts() async {
     setState(() => _isLoading = true);
     try {
-      final response = await http.get(Uri.parse('http://localhost:3000/api/ai/scripts'));
+      final response = await http.get(Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/scripts'));
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
@@ -43,7 +43,7 @@ class _AIScriptLibraryState extends State<AIScriptLibrary> {
 
   Future<void> _deleteScript(String id) async {
     try {
-       final response = await http.delete(Uri.parse('http://localhost:3000/api/ai/scripts/$id'));
+       final response = await http.delete(Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/scripts/$id'));
        if (response.statusCode == 200) {
          _fetchScripts();
          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Script deleted.')));

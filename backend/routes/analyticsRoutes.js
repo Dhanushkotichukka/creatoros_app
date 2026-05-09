@@ -1,5 +1,33 @@
 const express = require('express');
 const router = express.Router();
+
+const Token = require('../models/Token');
+
+// Middleware to inject platform context per user request
+router.use(async (req, res, next) => {
+    if (!req.user || !req.user.id) return next();
+    const tokens = await Token.find({ userId: req.user.id });
+    req.platformContext = {};
+    for (const t of tokens) {
+        if (t.platform === 'youtube') {
+            req.platformContext.youtubeToken = t.accessToken;
+            req.platformContext.ytChannelId = t.platformAccountId;
+            req.platformContext.ytChannelName = t.platformAccountName;
+            req.platformContext.ytAvatar = t.avatar;
+        } else if (t.platform === 'meta') {
+            req.platformContext.metaToken = t.accessToken;
+            req.platformContext.igAccountId = t.platformAccountId;
+            req.platformContext.igName = t.platformAccountName;
+            req.platformContext.igUsername = t.platformAccountName;
+            req.platformContext.igAvatar = t.avatar;
+        } else if (t.platform === 'linkedin') {
+            req.platformContext.linkedinToken = t.accessToken;
+            req.platformContext.linkedinName = t.platformAccountName;
+            req.platformContext.linkedinAvatar = t.avatar;
+        }
+    }
+    next();
+});
 const axios = require('axios');
 const Parser = require('rss-parser');
 const rssParser = new Parser();
@@ -67,9 +95,9 @@ const generateGraphData = (contentItems) => {
 };
 
 // ─── YT ANALYTICS HELPER ─────────────────────────────────────────────
-const getYTAnalyticsData = async (type = 'overview', days = 28) => {
+const getYTAnalyticsData = async (userId, type = 'overview', days = 28) => {
     try {
-        const analytics = await youtubeController.getYouTubeAnalyticsClient();
+        const analytics = await youtubeController.getYouTubeAnalyticsClient(userId);
         if (!analytics) return null;
 
         const endDate = new Date().toISOString().split('T')[0];
@@ -94,12 +122,12 @@ const getYTAnalyticsData = async (type = 'overview', days = 28) => {
             params.sort = '-views';
             params.maxResults = 5;
         } else if (type === 'realtime') {
-            // Last 48 hours
+            // Last 48 hours (using day since hour causes Unknown identifier error in YT Analytics v2)
             const rtStart = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString().split('T')[0];
             params.startDate = rtStart;
             params.metrics = 'views';
-            params.dimensions = 'hour';
-            params.sort = 'hour';
+            params.dimensions = 'day';
+            params.sort = 'day';
         } else if (type === 'hookAnalysis') {
             params.metrics = 'averageViewDuration,averageViewPercentage,views';
             params.dimensions = 'video';
@@ -143,26 +171,26 @@ const fetchVideosViaRSS = async (channelId) => {
 router.get('/platforms/status', async (req, res) => {
     res.json({
         youtube: {
-            connected: !!global.youtubeToken,
-            name: global.ytChannelName || FALLBACK_CHANNEL_NAME,
-            avatar: global.ytAvatar || null
+            connected: !!req.platformContext.youtubeToken,
+            name: req.platformContext.ytChannelName || FALLBACK_CHANNEL_NAME,
+            avatar: req.platformContext.ytAvatar || null
         },
         instagram: {
-            connected: !!global.metaToken,
-            name: global.igUsername ? '@' + global.igUsername : (global.igName || null),
-            avatar: global.igAvatar || null
+            connected: !!req.platformContext.metaToken,
+            name: req.platformContext.igUsername ? '@' + req.platformContext.igUsername : (req.platformContext.igName || null),
+            avatar: req.platformContext.igAvatar || null
         },
         linkedin: {
-            connected: !!global.linkedinToken,
-            name: global.linkedinName || null,
-            avatar: global.linkedinAvatar || null
+            connected: !!req.platformContext.linkedinToken,
+            name: req.platformContext.linkedinName || null,
+            avatar: req.platformContext.linkedinAvatar || null
         }
     });
 });
 
 // ─── ANALYTICS OVERVIEW ───────────────────────────────────────────────
 router.get('/overview', async (req, res) => {
-    const cacheKey = `overview_${global.ytChannelId || 'none'}_${global.igAccountId || 'none'}_${global.linkedinName || 'none'}`;
+    const cacheKey = `overview_${req.platformContext.ytChannelId || 'none'}_${req.platformContext.igAccountId || 'none'}_${req.platformContext.linkedinName || 'none'}`;
     const cached = getCached(cacheKey);
     if (cached && !req.query.refresh) {
         console.log('[CACHE] Serving /overview from cache.');
@@ -179,18 +207,18 @@ router.get('/overview', async (req, res) => {
     let realtimeData = { labels: [], values: [] };
 
     // ── 1. YOUTUBE ────────────────────────────────────────────────────
-    if (global.youtubeToken) {
+    if (req.platformContext.youtubeToken) {
         let ytPlatform = { 
             name: 'YouTube', isConnected: true, 
             views: 'Synced', subscribers: 'Synced', videos: 'Synced',
-            channelName: global.ytChannelName || 'Connected YouTube',
-            channelAvatar: global.ytAvatar
+            channelName: req.platformContext.ytChannelName || 'Connected YouTube',
+            channelAvatar: req.platformContext.ytAvatar
         };
 
         try {
-            const youtube = await youtubeController.getYouTubeClient();
-            ytAnalytics = await getYTAnalyticsData('overview', 28);
-            const rtAnalytics = await getYTAnalyticsData('realtime', 2);
+            const youtube = await youtubeController.getYouTubeClient(req.user.id);
+            ytAnalytics = await getYTAnalyticsData(req.user.id, 'overview', 28);
+            const rtAnalytics = await getYTAnalyticsData(req.user.id, 'realtime', 2);
 
             if (youtube) {
                 const ytRes = await youtube.channels.list({ part: 'statistics,snippet,contentDetails', mine: true });
@@ -249,8 +277,8 @@ router.get('/overview', async (req, res) => {
         } catch (apiError) {
             console.error('[YT OVERVIEW ERROR]', apiError.message);
             // Fallback: If API fails, try to fetch some data via RSS if we have a channel ID
-            if (global.ytChannelId) {
-                const rssVideos = await fetchVideosViaRSS(global.ytChannelId);
+            if (req.platformContext.ytChannelId) {
+                const rssVideos = await fetchVideosViaRSS(req.platformContext.ytChannelId);
                 topContent = [...topContent, ...rssVideos];
             }
         }
@@ -258,17 +286,17 @@ router.get('/overview', async (req, res) => {
     }
 
     // ── 2. INSTAGRAM ──────────────────────────────────────────────────
-    if (global.metaToken && global.igAccountId) {
+    if (req.platformContext.metaToken && req.platformContext.igAccountId) {
         let igPlatform = { 
             name: 'Instagram', isConnected: true, 
             views: 'Synced', subscribers: 'Synced', videos: 'Synced',
-            channelName: global.igUsername ? '@' + global.igUsername : (global.igName || 'Connected Instagram'),
-            channelAvatar: global.igAvatar
+            channelName: req.platformContext.igUsername ? '@' + req.platformContext.igUsername : (req.platformContext.igName || 'Connected Instagram'),
+            channelAvatar: req.platformContext.igAvatar
         };
 
         try {
             const igRes = await axios.get(
-                `https://graph.facebook.com/v19.0/${global.igAccountId}?fields=followers_count,media_count,username,profile_picture_url,media{id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count}&access_token=${global.metaToken}`
+                `https://graph.facebook.com/v19.0/${req.platformContext.igAccountId}?fields=followers_count,media_count,username,profile_picture_url,media{id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count}&access_token=${req.platformContext.metaToken}`
             );
             const d = igRes.data;
             const reach = (d.media_count || 0) * 125;
@@ -303,12 +331,12 @@ router.get('/overview', async (req, res) => {
     }
 
     // ── 3. LINKEDIN ───────────────────────────────────────────────────
-    if (global.linkedinToken) {
+    if (req.platformContext.linkedinToken) {
         let liPlatform = {
             name: 'LinkedIn', isConnected: true,
             views: 'Synced', subscribers: 'Synced', videos: 'Synced',
-            channelName: global.linkedinName || 'Connected LinkedIn',
-            channelAvatar: global.linkedinAvatar
+            channelName: req.platformContext.linkedinName || 'Connected LinkedIn',
+            channelAvatar: req.platformContext.linkedinAvatar
         };
 
         const liConnections = 1450;
@@ -480,7 +508,7 @@ router.get('/:platform', async (req, res) => {
     const { platform } = req.params;
     if (['platforms', 'overview', 'video'].includes(platform)) return res.status(404).end();
 
-    const platCacheKey = `platform_${platform.toLowerCase()}_${global.ytChannelId || 'none'}_${global.igAccountId || 'none'}_${global.linkedinName || 'none'}`;
+    const platCacheKey = `platform_${platform.toLowerCase()}_${req.platformContext.ytChannelId || 'none'}_${req.platformContext.igAccountId || 'none'}_${req.platformContext.linkedinName || 'none'}`;
     const platCached = getCached(platCacheKey);
     if (platCached && !req.query.refresh) {
         console.log(`[CACHE] Serving /${platform} from cache.`);
@@ -495,7 +523,7 @@ router.get('/:platform', async (req, res) => {
 
     if (platform.toLowerCase() === 'youtube') {
         try {
-            const youtube = await youtubeController.getYouTubeClient();
+            const youtube = await youtubeController.getYouTubeClient(req.user.id);
             const analytics = await youtubeController.getYouTubeAnalyticsClient();
 
             if (youtube) {
@@ -547,10 +575,10 @@ router.get('/:platform', async (req, res) => {
             }
 
             // Historical & Realtime
-            const ytHistorical = await getYTAnalyticsData('overview', 28);
-            const ytRealtime = await getYTAnalyticsData('realtime', 2);
-            const ytAudience = await getYTAnalyticsData('audience', 28);
-            const ytGeo = await getYTAnalyticsData('geography', 28);
+            const ytHistorical = await getYTAnalyticsData(req.user.id, 'overview', 28);
+            const ytRealtime = await getYTAnalyticsData(req.user.id, 'realtime', 2);
+            const ytAudience = await getYTAnalyticsData(req.user.id, 'audience', 28);
+            const ytGeo = await getYTAnalyticsData(req.user.id, 'geography', 28);
 
             if (ytHistorical?.rows) {
                 historical.labels = ytHistorical.rows.map(r => r[0].split('-').slice(1).join('/'));
@@ -592,10 +620,10 @@ router.get('/:platform', async (req, res) => {
         } catch (e) {
             console.error('[YT DEEP ERROR]', e.message);
         }
-    } else if (platform.toLowerCase() === 'instagram' && global.metaToken && global.igAccountId) {
+    } else if (platform.toLowerCase() === 'instagram' && req.platformContext.metaToken && req.platformContext.igAccountId) {
         try {
             const igRes = await axios.get(
-                `https://graph.facebook.com/v19.0/${global.igAccountId}?fields=followers_count,media_count,username,name,profile_picture_url,media{id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count}&access_token=${global.metaToken}`
+                `https://graph.facebook.com/v19.0/${req.platformContext.igAccountId}?fields=followers_count,media_count,username,name,profile_picture_url,media{id,caption,media_type,media_url,thumbnail_url,timestamp,like_count,comments_count}&access_token=${req.platformContext.metaToken}`
             );
             const d = igRes.data;
             const followers = d.followers_count || 0;
@@ -665,15 +693,15 @@ router.get('/:platform', async (req, res) => {
         } catch (e) {
             console.warn('[IG DEEP ERROR]', e.message);
         }
-    } else if (platform.toLowerCase() === 'linkedin' && global.linkedinToken) {
+    } else if (platform.toLowerCase() === 'linkedin' && req.platformContext.linkedinToken) {
         try {
             const connections = 1450;
             const impressions = 12500;
             const engRate = '4.2';
 
             platformData = {
-                name: global.linkedinName || 'LinkedIn Profile',
-                avatar: global.linkedinAvatar,
+                name: req.platformContext.linkedinName || 'LinkedIn Profile',
+                avatar: req.platformContext.linkedinAvatar,
                 subscribers: formatViews(connections),
                 subscribersNum: connections,
                 totalViews: formatViews(impressions),
@@ -815,7 +843,7 @@ router.post('/cache/clear', (req, res) => {
 router.get('/video/:id', async (req, res) => {
     const { id } = req.params;
     try {
-        const youtube = await youtubeController.getYouTubeClient();
+        const youtube = await youtubeController.getYouTubeClient(req.user.id);
         if (youtube) {
             const vidRes = await youtube.videos.list({ part: 'snippet,statistics,status,contentDetails', id });
             if (vidRes.data.items?.length) {
@@ -899,7 +927,7 @@ router.get('/video/:id/comments', async (req, res) => {
     const { pageToken } = req.query;
     
     try {
-        const youtube = await youtubeController.getYouTubeClient();
+        const youtube = await youtubeController.getYouTubeClient(req.user.id);
         if (youtube) {
             const params = {
                 part: 'snippet,replies',
@@ -951,7 +979,7 @@ router.post('/video/:id/reply', async (req, res) => {
     const { commentId, text } = req.body;
     
     try {
-        const youtube = await youtubeController.getYouTubeClient();
+        const youtube = await youtubeController.getYouTubeClient(req.user.id);
         if (youtube) {
             await youtube.comments.insert({
                 part: 'snippet',
@@ -1025,7 +1053,7 @@ router.post('/insights', async (req, res) => {
                 }
             }
         } else {
-            const overviewKey = `overview_${global.youtubeToken ? 'yt' : 'none'}_${global.metaToken ? 'ig' : 'none'}`;
+            const overviewKey = `overview_${req.platformContext.youtubeToken ? 'yt' : 'none'}_${req.platformContext.metaToken ? 'ig' : 'none'}`;
             sourceData = getCached(overviewKey) || {};
 
             if (sourceData.topContent) {
@@ -1036,23 +1064,23 @@ router.post('/insights', async (req, res) => {
         }
 
         // ALWAYS try to fetch real YT data if we have a token and we are on YT or Overview
-        if (global.youtubeToken && (!isPlatformSpecific || platformQuery.toLowerCase() === 'youtube')) {
+        if (req.platformContext.youtubeToken && (!isPlatformSpecific || platformQuery.toLowerCase() === 'youtube')) {
             try {
                 // Fetch missing metrics directly from YouTube Analytics API
                 if (ytRows.length === 0) {
-                    const ytAnalytics = await getYTAnalyticsData('overview', 28);
+                    const ytAnalytics = await getYTAnalyticsData(req.user.id, 'overview', 28);
                     if (ytAnalytics?.rows) ytRows = ytAnalytics.rows;
                 }
                 if (rtValues.length === 0) {
-                    const ytRealtime  = await getYTAnalyticsData('realtime', 2);
+                    const ytRealtime  = await getYTAnalyticsData(req.user.id, 'realtime', 2);
                     if (ytRealtime?.rows) rtValues = ytRealtime.rows.map(r => r[1]);
                 }
                 if (audienceRows.length === 0) {
-                    const ytAudience  = await getYTAnalyticsData('audience', 28);
+                    const ytAudience  = await getYTAnalyticsData(req.user.id, 'audience', 28);
                     if (ytAudience?.rows) audienceRows = ytAudience.rows;
                 }
                 if (!sourceData.hookRows) {
-                    const ytHookData  = await getYTAnalyticsData('hookAnalysis', 28);
+                    const ytHookData  = await getYTAnalyticsData(req.user.id, 'hookAnalysis', 28);
                     if (ytHookData?.rows) sourceData.hookRows = ytHookData.rows;
                 }
             } catch (e) {
@@ -1258,7 +1286,7 @@ router.post('/insights', async (req, res) => {
         const growthScore    = Math.max(0, Math.min(100, 50 + growthPct));
         const perfGapRatio   = lowAvgRetention > 0 ? (topAvgRetention / lowAvgRetention).toFixed(1) : 'N/A';
 
-        const channelName = global.ytChannelName || 'Your Channel';
+        const channelName = req.platformContext.ytChannelName || 'Your Channel';
 
         // ── 4. Build compact summary (this is all we send to AI) ─────────
         const summary = {
@@ -1307,7 +1335,7 @@ router.post('/insights', async (req, res) => {
 
         // ── Determine Confidence and CompareText ─────────────────────────
         let confidence = 'Low';
-        if (global.youtubeToken || global.metaToken) {
+        if (req.platformContext.youtubeToken || req.platformContext.metaToken) {
             confidence = 'High';
         } else if (ytRows.length > 0 || topContentSample.length > 0) {
             confidence = 'Medium';

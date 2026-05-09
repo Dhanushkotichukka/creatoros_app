@@ -83,7 +83,7 @@ const getPresignedUrl = async (bucket, fileName, expiresInSeconds = 3600) => {
     }
 
     // Local fallback: return the local server URL
-    return `http://localhost:3000/uploads/${fileName}`;
+    return `https://creatoros-backend-rb5b.onrender.com/uploads/${fileName}`;
 };
 
 const listStorageObjects = async () => {
@@ -133,7 +133,7 @@ const listStorageObjects = async () => {
                 name: file,
                 size: stats.size,
                 lastModified: stats.mtime,
-                url: `http://localhost:3000/uploads/${file}`,
+                url: `https://creatoros-backend-rb5b.onrender.com/uploads/${file}`,
                 storage: 'Local'
             };
         });
@@ -167,10 +167,10 @@ const deleteStorageObject = async (fileName, storageLabel) => {
 // Get a fresh presigned download URL for a file
 const getDownloadUrl = async (fileName, storageLabel) => {
     if (storageLabel === 'Local') {
-        return `http://localhost:3000/uploads/${fileName}`;
+        return `https://creatoros-backend-rb5b.onrender.com/uploads/${fileName}`;
     }
     if (!isAWSConfigured) {
-        return `http://localhost:3000/uploads/${fileName}`;
+        return `https://creatoros-backend-rb5b.onrender.com/uploads/${fileName}`;
     }
     const bucket = storageLabel === 'S3-Temp' ? TEMP_BUCKET : FINAL_BUCKET;
     return getPresignedUrl(bucket, fileName, 3600);

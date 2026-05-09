@@ -108,7 +108,7 @@ class _AIScriptScreenState extends State<AIScriptScreen>
     });
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/ai/my-ai/generate-script'),
+        Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/my-ai/generate-script'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'topic': _topic,
@@ -159,7 +159,7 @@ class _AIScriptScreenState extends State<AIScriptScreen>
     setState(() => _modifying = key);
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/ai/my-ai/modify-script'),
+        Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/my-ai/modify-script'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'section': key,
@@ -180,7 +180,7 @@ class _AIScriptScreenState extends State<AIScriptScreen>
   Future<void> _saveScript() async {
     try {
       await http.post(
-        Uri.parse('http://localhost:3000/api/ai/scripts'),
+        Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/scripts'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'topicTitle': _topic,

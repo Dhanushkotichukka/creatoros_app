@@ -6,6 +6,7 @@ const fs = require('fs');
 const axios = require('axios');
 
 exports.publishToAll = async (req, res) => {
+    const userId = req.user?.id;
     const { title, platformData, mediaUrls } = req.body;
     const platforms = JSON.parse(platformData || '{}');
     const urls = mediaUrls || [];
@@ -127,7 +128,7 @@ exports.publishToAll = async (req, res) => {
             } else {
                 try {
                     const videoPath = localTempPaths.find(p => ['.mp4', '.mov', '.avi', '.webm'].some(e => p.endsWith(e)));
-                    const ytRes = await youtubeController.publishToYouTube(videoPath, platforms[ytKey]);
+                    const ytRes = await youtubeController.publishToYouTube(videoPath, platforms[ytKey], userId);
                     results.push(ytRes || { platform: 'YouTube', success: true });
                 } catch (err) {
                     results.push({ platform: 'YouTube', success: false, error: err.message });
@@ -141,7 +142,7 @@ exports.publishToAll = async (req, res) => {
             const igKey = Object.keys(platforms).find(k => k.toLowerCase() === 'instagram');
             try {
                 console.log(`[PUBLISH] Instagram using URLs:`, instagramUrls.map(u => u.substring(0, 80)));
-                const igRes = await metaController.publishToInstagram(instagramUrls, platforms[igKey]);
+                const igRes = await metaController.publishToInstagram(instagramUrls, platforms[igKey], userId);
                 results.push(igRes);
             } catch (err) {
                 results.push({ platform: 'Instagram', success: false, error: err.message });
@@ -154,7 +155,7 @@ exports.publishToAll = async (req, res) => {
             try {
                 // Pass localTempPaths (may be empty for text-only)
                 // Pass original signed S3 URLs as 3rd arg for video link-card fallback
-                const liRes = await linkedinController.publishToLinkedIn(localTempPaths, platforms[liKey], urls);
+                const liRes = await linkedinController.publishToLinkedIn(localTempPaths, platforms[liKey], urls, userId);
                 results.push(liRes);
             } catch (err) {
                 results.push({ platform: 'LinkedIn', success: false, error: err.message });
@@ -181,6 +182,7 @@ exports.publishToAll = async (req, res) => {
                 });
 
                 await Content.create({
+                    userId,
                     title: title || 'CreatorOS Multi-Post',
                     description: 'Published via multi-post hub',
                     contentType: hasVideo ? 'video' : (urls.length > 1 ? 'carousel' : 'image'),

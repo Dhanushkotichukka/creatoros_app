@@ -32,13 +32,13 @@ class _MasterAISectionState extends State<MasterAISection> {
   Future<void> _checkConnections() async {
     setState(() => _isCheckingConnection = true);
     try {
-      final ytRes = await http.get(Uri.parse('http://127.0.0.1:3000/auth/youtube/status'));
+      final ytRes = await http.get(Uri.parse('https://creatoros-backend-rb5b.onrender.com/auth/youtube/status'));
       if (ytRes.statusCode == 200) {
         final d = jsonDecode(ytRes.body);
         _isYouTubeConnected = d['connected'] ?? false;
         _youtubeChannelName = d['name'];
       }
-      final metaRes = await http.get(Uri.parse('http://127.0.0.1:3000/auth/meta/status'));
+      final metaRes = await http.get(Uri.parse('https://creatoros-backend-rb5b.onrender.com/auth/meta/status'));
       if (metaRes.statusCode == 200) {
         final d = jsonDecode(metaRes.body);
         _isMetaConnected = d['connected'] ?? false;
@@ -55,7 +55,7 @@ class _MasterAISectionState extends State<MasterAISection> {
     setState(() { _isAnalyzing = true; _analysisResult = null; });
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/ai/master-ai/analyze-channel'),
+        Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/master-ai/analyze-channel'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'platform': _selectedPlatform}),
       );
@@ -158,8 +158,8 @@ class _MasterAISectionState extends State<MasterAISection> {
             FilledButton.icon(
               onPressed: () async {
                 final url = Uri.parse(_selectedPlatform == 'YouTube'
-                    ? 'http://127.0.0.1:3000/auth/youtube/login'
-                    : 'http://127.0.0.1:3000/auth/meta/login');
+                    ? 'https://creatoros-backend-rb5b.onrender.com/auth/youtube/login'
+                    : 'https://creatoros-backend-rb5b.onrender.com/auth/meta/login');
                 if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
               },
               icon: const Icon(Icons.link),

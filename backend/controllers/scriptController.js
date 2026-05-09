@@ -13,7 +13,7 @@ exports.saveScript = async (req, res) => {
 
 exports.getScripts = async (req, res) => {
     try {
-        const scripts = await Script.findAll({ order: [['createdAt', 'DESC']] });
+        const scripts = await Script.find({}).sort({ createdAt: -1 });
         res.status(200).json({ scripts });
     } catch (error) {
         console.error('Error fetching scripts:', error);
@@ -25,11 +25,10 @@ exports.updateScript = async (req, res) => {
     try {
         const { id } = req.params;
         const updatedData = req.body;
-        
-        const script = await Script.findByPk(id);
+
+        const script = await Script.findByIdAndUpdate(id, updatedData, { new: true });
         if (!script) return res.status(404).json({ error: 'Script not found' });
 
-        await script.update(updatedData);
         res.status(200).json({ message: 'Script updated successfully', script });
     } catch (error) {
         console.error('Error updating script:', error);
@@ -40,10 +39,9 @@ exports.updateScript = async (req, res) => {
 exports.deleteScript = async (req, res) => {
     try {
         const { id } = req.params;
-        const script = await Script.findByPk(id);
+        const script = await Script.findByIdAndDelete(id);
         if (!script) return res.status(404).json({ error: 'Script not found' });
 
-        await script.destroy();
         res.status(200).json({ message: 'Script deleted successfully' });
     } catch (error) {
         console.error('Error deleting script:', error);

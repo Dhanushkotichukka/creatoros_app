@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../../utils/app_colors.dart';
 import '../../widgets/video_card_widget.dart';
 import '../../widgets/transcript_modal.dart';
+import '../../services/auth_service.dart';
 
 class MyAISection extends StatefulWidget {
   const MyAISection({super.key});
@@ -58,15 +59,16 @@ class _MyAISectionState extends State<MyAISection>
     });
 
     try {
+      final headers = await AuthService.getAuthHeaders();
       final results = await Future.wait([
         http.post(
-          Uri.parse('http://localhost:3000/api/ai/my-ai/trending-videos'),
-          headers: {'Content-Type': 'application/json'},
+          Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/my-ai/trending-videos'),
+          headers: headers,
           body: jsonEncode({'category': category}),
         ),
         http.post(
-          Uri.parse('http://localhost:3000/api/ai/my-ai/trends'),
-          headers: {'Content-Type': 'application/json'},
+          Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/my-ai/trends'),
+          headers: headers,
           body: jsonEncode({'category': category}),
         ),
       ]);

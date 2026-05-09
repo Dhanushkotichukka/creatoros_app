@@ -74,7 +74,7 @@ class _TranscriptModalState extends State<TranscriptModal> {
     setState(() => _isLoading = true);
     try {
       final response = await http.post(
-        Uri.parse('http://localhost:3000/api/ai/my-ai/extract-transcript'),
+        Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/my-ai/extract-transcript'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'videoId': widget.videoId,
