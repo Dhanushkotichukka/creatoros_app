@@ -1,8 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const { syncDatabase } = require('./models');
-const { loadSessions } = require('./utils/sessionHelper');
+const { connectDatabase } = require('./models');
 
 const path = require('path');
 const fs = require('fs');
@@ -20,11 +19,7 @@ process.on('unhandledRejection', (reason, promise) => {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Load persistent sessions
-global.youtubeToken = null;
-global.metaToken = null;
-global.linkedinToken = null;
-loadSessions();
+// Platform tokens are now stored in MongoDB Token collection, managed per-user
 
 // Serve static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -53,16 +48,27 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const mediaRoutes = require('./routes/mediaRoutes');
 const publishRoutes = require('./routes/publishRoutes');
 
+// Auth
+const authRoutes = require('./routes/authRoutes');
+const authenticateToken = require('./middleware/authMiddleware');
+
 console.log('Setting up routes...');
+
+// Auth routes (public)
+app.use('/auth/google-signin', authRoutes);
+
+// Protected routes
+app.use('/api/ai/scripts', authenticateToken, scriptRoutes);
+app.use('/api/ai', authenticateToken, aiRoutes);
+app.use('/api/publish', authenticateToken, publishRoutes);
+app.use('/api/analytics', authenticateToken, analyticsRoutes);
+app.use('/api/media', authenticateToken, mediaRoutes);
+
+// Platform OAuth routes stay PUBLIC
 app.use('/auth/youtube', youtubeRoutes);
-app.use('/api/ai/scripts', scriptRoutes);
-app.use('/api/ai', aiRoutes);
 app.use('/auth/meta', metaRoutes);
-app.use('/auth/linkedin', linkedinRoutes); 
-app.use('/api/publish', publishRoutes);
+app.use('/auth/linkedin', linkedinRoutes);
 app.use('/auth/instagram', metaRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/media', mediaRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {
@@ -70,15 +76,13 @@ app.get('/', (req, res) => {
     res.json({ message: 'CreatorOS Backend API is running' });
 });
 
-console.log('Connecting to database...');
-syncDatabase().then(() => {
+console.log('Connecting to MongoDB...');
+connectDatabase().then(() => {
     console.log('Starting server...');
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT} (Listening on all interfaces)`);
-        
-        // Force the event loop to stay alive just in case something is prematurely closing the server handle
         setInterval(() => {}, 1000 * 60 * 60);
     });
 }).catch(err => {
-    console.error('Database sync failed:', err);
+    console.error('Database connection failed:', err);
 });
