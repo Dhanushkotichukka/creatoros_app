@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/post_state.dart';
 import 'providers/theme_provider.dart';
+import 'providers/auth_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'providers/view_state_provider.dart';
@@ -13,12 +14,14 @@ import 'screens/creator_studio_screen.dart';
 import 'screens/multi_post_hub_screen.dart';
 import 'screens/creator_studio/creator_studio_layout.dart' as creator_studio;
 import 'screens/video_editor_screen.dart';
+import 'screens/login_screen.dart';
 import 'widgets/app_scaffold.dart';
 
 void main() {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => PostState()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => ViewStateProvider()),
@@ -59,7 +62,7 @@ class CreatorOSApp extends StatelessWidget {
       theme: activeTheme,
       darkTheme: activeTheme,
       themeMode: themeMode,
-      home: const MainNavigationScreen(),
+      home: const AuthGate(),
       routes: {
         '/ai/script_workshop': (context) {
            final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>? ?? {};
@@ -76,6 +79,27 @@ class CreatorOSApp extends StatelessWidget {
         },
       },
     );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final authProvider = context.watch<AuthProvider>();
+
+    if (authProvider.isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: Color(0xFFFF6B00))),
+      );
+    }
+
+    if (!authProvider.isLoggedIn) {
+      return const LoginScreen();
+    }
+
+    return const MainNavigationScreen();
   }
 }
 

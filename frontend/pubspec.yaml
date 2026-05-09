@@ -45,6 +45,7 @@ dependencies:
   fl_chart: ^0.70.2
   # WebView for Android/iOS (Flutter Web uses HtmlElementView instead)
   webview_flutter: ^4.10.0
+  google_sign_in: ^6.2.1
 
 dev_dependencies:
   flutter_test:
