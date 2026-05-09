@@ -1,16 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../providers/auth_provider.dart';
 import '../utils/app_colors.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme         = Theme.of(context);
-    final c             = theme.extension<AppColors>()!;
+    final theme = Theme.of(context);
+    final c = theme.extension<AppColors>()!;
     final themeProvider = context.watch<ThemeProvider>();
+    final authProvider = context.watch<AuthProvider>();
+    final user = authProvider.currentUser;
+
+    final String name = user?['name'] ?? 'Creator';
+    final String email = user?['email'] ?? '';
+    final String? photoUrl = user?['profilePicture'];
+    final String phone = user?['phone'] ?? '';
+    final String bio = user?['bio'] ?? '';
+    final int creatorScore = user?['creatorScore'] ?? 0;
 
     return Scaffold(
       backgroundColor: c.surface,
@@ -23,39 +34,36 @@ class ProfileScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
         children: [
-          // ── Avatar + name row ──
+          // ── Avatar + info ──
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Gradient avatar
               Container(
-                width: 64,
-                height: 64,
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: c.primaryGradient ??
-                      LinearGradient(
-                        colors: [c.primary, c.accent],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                  gradient: photoUrl == null
+                      ? (c.primaryGradient ??
+                          LinearGradient(colors: [c.primary, c.accent]))
+                      : null,
                   boxShadow: [
                     BoxShadow(
-                      color: c.primary.withOpacity(0.4),
+                      color: c.primary.withOpacity(0.35),
                       blurRadius: 16,
                       spreadRadius: 2,
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Text(
-                    'V',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
+                child: photoUrl != null
+                    ? ClipOval(
+                        child: Image.network(
+                          photoUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _FallbackAvatar(name: name),
+                        ),
+                      )
+                    : _FallbackAvatar(name: name),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -63,7 +71,7 @@ class ProfileScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Vasanth Kumar',
+                      name,
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
@@ -71,30 +79,64 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      'vasanth@creatoros.ai',
+                      email,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: c.textSecondary,
-                        fontSize: 13,
+                        fontSize: 12,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                      decoration: BoxDecoration(
-                        gradient: c.primaryGradient ??
-                            LinearGradient(
-                              colors: [c.primary, c.accent],
+                    if (phone.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          Icon(Icons.phone_outlined, size: 12, color: c.textSecondary),
+                          const SizedBox(width: 4),
+                          Text(
+                            phone,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: c.textSecondary,
+                              fontSize: 12,
                             ),
-                        borderRadius: BorderRadius.circular(20),
+                          ),
+                        ],
                       ),
-                      child: const Text(
-                        'Pro Creator',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
+                    ],
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            gradient: c.primaryGradient ??
+                                LinearGradient(colors: [c.primary, c.accent]),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'Pro Creator',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: c.accent.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '⭐ $creatorScore pts',
+                            style: TextStyle(
+                              color: c.accent,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -102,11 +144,53 @@ class ProfileScreen extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 28),
+          if (bio.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: c.secondary.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: c.border),
+              ),
+              child: Text(
+                bio,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: c.textSecondary,
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 20),
+
+          // Edit Profile button
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+              ),
+              icon: Icon(Icons.edit_outlined, size: 16, color: c.primary),
+              label: Text(
+                'Edit Profile',
+                style: TextStyle(color: c.primary, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: c.primary.withOpacity(0.5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 24),
           Divider(color: c.border),
           const SizedBox(height: 8),
 
-          // ── Theme Toggle ──────────────────────────────────────────────────
           _SectionLabel(label: 'APPEARANCE', color: c.textSecondary),
           const SizedBox(height: 12),
           _ThemeSwitcher(themeProvider: themeProvider, c: c),
@@ -115,16 +199,8 @@ class ProfileScreen extends StatelessWidget {
           Divider(color: c.border),
           const SizedBox(height: 8),
 
-          // ── Account ──────────────────────────────────────────────────────
           _SectionLabel(label: 'ACCOUNT', color: c.textSecondary),
           const SizedBox(height: 4),
-          _MenuTile(
-            icon: Icons.person_outline,
-            label: 'Profile Information',
-            color: c.primary,
-            c: c,
-            onTap: () {},
-          ),
           _MenuTile(
             icon: Icons.link_outlined,
             label: 'Connected Platforms',
@@ -144,26 +220,25 @@ class ProfileScreen extends StatelessWidget {
           Divider(color: c.border),
           const SizedBox(height: 8),
 
-          // ── Preferences ───────────────────────────────────────────────────
           _SectionLabel(label: 'PREFERENCES', color: c.textSecondary),
           const SizedBox(height: 4),
-          _MenuTile(icon: Icons.notifications_outlined, label: 'Notifications',    color: c.primary, c: c, onTap: () {}),
-          _MenuTile(icon: Icons.language_outlined,      label: 'Language & Region', color: c.primary, c: c, onTap: () {}),
+          _MenuTile(icon: Icons.notifications_outlined, label: 'Notifications',     color: c.primary, c: c, onTap: () {}),
+          _MenuTile(icon: Icons.language_outlined,      label: 'Language & Region',  color: c.primary, c: c, onTap: () {}),
           _MenuTile(icon: Icons.privacy_tip_outlined,   label: 'Privacy & Security', color: c.primary, c: c, onTap: () {}),
 
           const SizedBox(height: 8),
           Divider(color: c.border),
           const SizedBox(height: 8),
 
-          // ── Danger zone ───────────────────────────────────────────────────
           _MenuTile(
             icon: Icons.logout,
             label: 'Sign Out',
             color: Colors.redAccent,
             c: c,
-            onTap: () => Navigator.pop(context),
+            onTap: () async {
+              await context.read<AuthProvider>().signOut();
+            },
           ),
-
           const SizedBox(height: 32),
         ],
       ),
@@ -171,7 +246,26 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-// ── Section label ─────────────────────────────────────────────────────────────
+class _FallbackAvatar extends StatelessWidget {
+  final String name;
+  const _FallbackAvatar({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'C';
+    return Center(
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionLabel extends StatelessWidget {
   final String label;
   final Color color;
@@ -194,7 +288,6 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
-// ── Menu tile ─────────────────────────────────────────────────────────────────
 class _MenuTile extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -224,23 +317,14 @@ class _MenuTile extends StatelessWidget {
       ),
       title: Text(
         label,
-        style: TextStyle(
-          fontWeight: FontWeight.w500,
-          fontSize: 14,
-          color: c.textPrimary,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: c.textPrimary),
       ),
-      trailing: Icon(
-        Icons.chevron_right,
-        size: 18,
-        color: c.textSecondary,
-      ),
+      trailing: Icon(Icons.chevron_right, size: 18, color: c.textSecondary),
       onTap: onTap,
     );
   }
 }
 
-// ── Theme switcher pill ───────────────────────────────────────────────────────
 class _ThemeSwitcher extends StatelessWidget {
   final ThemeProvider themeProvider;
   final AppColors c;
@@ -257,27 +341,9 @@ class _ThemeSwitcher extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _ThemeOption(
-            icon: Icons.wb_sunny_outlined,
-            label: 'Light',
-            selected: mode == AppMode.light,
-            selectedColor: const Color(0xFFFF6B00),
-            onTap: () => themeProvider.setLight(),
-          ),
-          _ThemeOption(
-            icon: Icons.nights_stay_outlined,
-            label: 'Dark',
-            selected: mode == AppMode.dark,
-            selectedColor: const Color(0xFFFF6B00),
-            onTap: () => themeProvider.setDark(),
-          ),
-          _ThemeOption(
-            icon: Icons.auto_awesome,
-            label: 'AI',
-            selected: mode == AppMode.ai,
-            selectedColor: const Color(0xFF7C3AED),
-            onTap: () => themeProvider.setAI(),
-          ),
+          _ThemeOption(icon: Icons.wb_sunny_outlined,  label: 'Light', selected: mode == AppMode.light, selectedColor: const Color(0xFFFF6B00), onTap: () => themeProvider.setLight()),
+          _ThemeOption(icon: Icons.nights_stay_outlined, label: 'Dark', selected: mode == AppMode.dark,  selectedColor: const Color(0xFFFF6B00), onTap: () => themeProvider.setDark()),
+          _ThemeOption(icon: Icons.auto_awesome,         label: 'AI',   selected: mode == AppMode.ai,   selectedColor: const Color(0xFF7C3AED), onTap: () => themeProvider.setAI()),
         ],
       ),
     );
@@ -290,14 +356,7 @@ class _ThemeOption extends StatelessWidget {
   final bool selected;
   final Color selectedColor;
   final VoidCallback onTap;
-
-  const _ThemeOption({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.selectedColor,
-    required this.onTap,
-  });
+  const _ThemeOption({required this.icon, required this.label, required this.selected, required this.selectedColor, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -311,28 +370,14 @@ class _ThemeOption extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? selectedColor : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: selectedColor.withOpacity(0.4),
-                      blurRadius: 12,
-                    ),
-                  ]
-                : [],
+            boxShadow: selected ? [BoxShadow(color: selectedColor.withOpacity(0.4), blurRadius: 12)] : [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 18, color: selected ? Colors.white : Colors.grey),
               const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? Colors.white : Colors.grey,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
-                  fontSize: 13,
-                ),
-              ),
+              Text(label, style: TextStyle(color: selected ? Colors.white : Colors.grey, fontWeight: selected ? FontWeight.w700 : FontWeight.w400, fontSize: 13)),
             ],
           ),
         ),

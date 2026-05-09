@@ -14,6 +14,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
+    sparse: true, // Allows multiple null googleIds
+  },
+  profilePicture: {
+    type: String,
+  },
+  phone: {
+    type: String,
+  },
+  bio: {
+    type: String,
   },
   creatorScore: {
     type: Number,
