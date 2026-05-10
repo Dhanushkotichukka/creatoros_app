@@ -18,20 +18,20 @@ class ApiService {
   static void setAuthToken(String? token) => _authToken = token;
 
   /// Auth + JSON headers for POST requests to protected routes
-  static Map<String, String> get _authHeaders => {
+  static Map<String, String> get authHeaders => {
     'Content-Type': 'application/json',
     if (_authToken != null) 'Authorization': 'Bearer $_authToken',
   };
 
   /// Auth-only headers for GET requests to protected routes (no body)
-  static Map<String, String> get _getAuthHeaders => {
+  static Map<String, String> get getAuthHeaders => {
     if (_authToken != null) 'Authorization': 'Bearer $_authToken',
   };
 
   // ── Platform OAuth (Public — no auth needed) ─────────────────────────────
 
   static Future<void> loginWithYouTube() async {
-    final response = await http.get(Uri.parse('$baseUrl/auth/youtube/login'), headers: _getAuthHeaders);
+    final response = await http.get(Uri.parse('$baseUrl/auth/youtube/login'), headers: getAuthHeaders);
     if (response.statusCode == 200) {
       final url = Uri.parse(jsonDecode(response.body)['url']);
       if (await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -43,7 +43,7 @@ class ApiService {
   }
 
   static Future<void> loginWithMeta() async {
-    final response = await http.get(Uri.parse('$baseUrl/auth/meta/login'), headers: _getAuthHeaders);
+    final response = await http.get(Uri.parse('$baseUrl/auth/meta/login'), headers: getAuthHeaders);
     if (response.statusCode == 200) {
       final url = Uri.parse(jsonDecode(response.body)['url']);
       if (await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -55,7 +55,7 @@ class ApiService {
   }
 
   static Future<void> loginWithLinkedIn() async {
-    final response = await http.get(Uri.parse('$baseUrl/auth/linkedin/login'), headers: _getAuthHeaders);
+    final response = await http.get(Uri.parse('$baseUrl/auth/linkedin/login'), headers: getAuthHeaders);
     if (response.statusCode == 200) {
       final url = Uri.parse(jsonDecode(response.body)['url']);
       if (await launchUrl(url, mode: LaunchMode.externalApplication)) {
@@ -71,7 +71,7 @@ class ApiService {
   static Future<String> generateScript(String topic) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/ai/script'),
-      headers: _authHeaders,
+      headers: authHeaders,
       body: jsonEncode({'topic': topic}),
     );
     if (response.statusCode == 200) {
@@ -85,7 +85,7 @@ class ApiService {
   static Future<String> generateAIChat(String message) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/ai/chat'),
-      headers: _authHeaders,
+      headers: authHeaders,
       body: jsonEncode({'message': message, 'context': ''}),
     );
     if (response.statusCode == 200) {
@@ -99,7 +99,7 @@ class ApiService {
   static Future<String> generateHashtags(String topic) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/ai/metadata'),
-      headers: _authHeaders,
+      headers: authHeaders,
       body: jsonEncode({'topic': topic}),
     );
     if (response.statusCode == 200) {
@@ -112,7 +112,7 @@ class ApiService {
   static Future<List<dynamic>> getTrendingTopics(String category) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/ai/my-ai/trends'),
-      headers: _authHeaders,
+      headers: authHeaders,
       body: jsonEncode({'category': category}),
     );
     if (response.statusCode == 200) {
@@ -125,7 +125,7 @@ class ApiService {
   static Future<List<dynamic>> generateMasterScripts(String niche, String targetAudience) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/ai/master-ai/generate-batch'),
-      headers: _authHeaders,
+      headers: authHeaders,
       body: jsonEncode({'niche': niche, 'targetAudience': targetAudience}),
     );
     if (response.statusCode == 200) {
@@ -140,7 +140,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getAnalyticsOverview({bool forceRefresh = false}) async {
     final uri = Uri.parse('$baseUrl/api/analytics/overview')
         .replace(queryParameters: forceRefresh ? {'refresh': '1'} : null);
-    final response = await http.get(uri, headers: _getAuthHeaders);
+    final response = await http.get(uri, headers: getAuthHeaders);
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -151,7 +151,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getPlatformAnalytics(String platform, {bool forceRefresh = false}) async {
     final uri = Uri.parse('$baseUrl/api/analytics/${platform.toLowerCase()}')
         .replace(queryParameters: forceRefresh ? {'refresh': '1'} : null);
-    final response = await http.get(uri, headers: _getAuthHeaders);
+    final response = await http.get(uri, headers: getAuthHeaders);
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -178,7 +178,7 @@ class ApiService {
           : null,
     );
 
-    final response = await http.post(uri, headers: _authHeaders);
+    final response = await http.post(uri, headers: authHeaders);
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       _insightsCacheMap[cacheKey] = data;
@@ -196,7 +196,7 @@ class ApiService {
 
   static Future<void> clearAnalyticsCache() async {
     try {
-      await http.post(Uri.parse('$baseUrl/api/analytics/cache/clear'), headers: _authHeaders);
+      await http.post(Uri.parse('$baseUrl/api/analytics/cache/clear'), headers: authHeaders);
     } catch (_) {}
   }
 

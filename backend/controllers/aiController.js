@@ -59,10 +59,10 @@ const formatViews = (v) => {
 };
 
 // ─── RSS VIDEO FETCHER (Quota-free real channel data) ─────────────────
-const fetchVideosViaRSS = async (channelId) => {
+const fetchVideosViaRSS = async (channelId, userId) => {
     let cId = channelId || FALLBACK_CHANNEL_ID;
-    if (!channelId) {
-        const ytToken = await require('../models/Token').findOne({ userId: 'default-user-id', platform: 'youtube' });
+    if (!channelId && userId) {
+        const ytToken = await require('../models/Token').findOne({ userId, platform: 'youtube' });
         cId = ytToken?.platformAccountId || FALLBACK_CHANNEL_ID;
     }
     try {
@@ -109,7 +109,7 @@ exports.getTrendingVideos = async (req, res) => {
 
         // Try YouTube API first
         try {
-            const youtube = await youtubeController.getYouTubeClient();
+            const youtube = await youtubeController.getYouTubeClient(req.user.id);
             if (youtube) {
                 const since = new Date(Date.now() - 7 * 86400000).toISOString();
                 const s = await youtube.search.list({ part: 'snippet', q: category || 'Viral', type: 'video', order: 'viewCount', publishedAfter: since, maxResults: 8 });
@@ -143,7 +143,7 @@ exports.getTrendingTopics = async (req, res) => {
     const { category } = req.body;
     try {
         // Get real channel videos for context
-        const channelVideos = await fetchVideosViaRSS(FALLBACK_CHANNEL_ID);
+        const channelVideos = await fetchVideosViaRSS(FALLBACK_CHANNEL_ID, req.user.id);
         const recentTitles = channelVideos.slice(0, 6).map(v => v.title);
 
         const prompt = `You are an expert YouTube strategist. Based on these recent videos from the channel: ${JSON.stringify(recentTitles)}, and the niche "${category}", generate 5 highly specific, viral video content ideas tailored to this channel's style. Return JSON: { "topics": [{"title":"...","trendScore":95,"whyTrending":"...","hook":"..."}] }`;
@@ -203,9 +203,9 @@ exports.analyzeChannelInsights = async (req, res) => {
 
         // Step 1: Try official API
         try {
-            const youtube = await youtubeController.getYouTubeClient();
+            const youtube = await youtubeController.getYouTubeClient(req.user.id);
             if (youtube) {
-                const ytToken = await require('../models/Token').findOne({ userId: 'default-user-id', platform: 'youtube' });
+                const ytToken = await require('../models/Token').findOne({ userId: req.user.id, platform: 'youtube' });
                 const channelRes = await youtube.channels.list({ part: 'snippet,contentDetails', mine: true });
                 if (channelRes.data.items?.length) {
                     const ch = channelRes.data.items[0];
@@ -230,8 +230,8 @@ exports.analyzeChannelInsights = async (req, res) => {
 
         // Step 2: RSS fallback if API gave nothing
         if (videos.length === 0) {
-            const ytToken = await require('../models/Token').findOne({ userId: 'default-user-id', platform: 'youtube' });
-            videos = await fetchVideosViaRSS(ytToken?.platformAccountId || FALLBACK_CHANNEL_ID);
+            const ytToken = await require('../models/Token').findOne({ userId: req.user.id, platform: 'youtube' });
+            videos = await fetchVideosViaRSS(ytToken?.platformAccountId || FALLBACK_CHANNEL_ID, req.user.id);
         }
 
         // Step 3: Analyze with AI

@@ -5,6 +5,7 @@ import 'dart:convert';
 import '../../utils/app_colors.dart';
 import '../../widgets/video_card_widget.dart';
 import '../../widgets/transcript_modal.dart';
+import '../../services/api_service.dart';
 
 class MasterAISection extends StatefulWidget {
   const MasterAISection({super.key});
@@ -32,13 +33,19 @@ class _MasterAISectionState extends State<MasterAISection> {
   Future<void> _checkConnections() async {
     setState(() => _isCheckingConnection = true);
     try {
-      final ytRes = await http.get(Uri.parse('https://creatoros-backend-rb5b.onrender.com/auth/youtube/status'));
+      final ytRes = await http.get(
+        Uri.parse('https://creatoros-backend-rb5b.onrender.com/auth/youtube/status'),
+        headers: ApiService.getAuthHeaders,
+      );
       if (ytRes.statusCode == 200) {
         final d = jsonDecode(ytRes.body);
         _isYouTubeConnected = d['connected'] ?? false;
         _youtubeChannelName = d['name'];
       }
-      final metaRes = await http.get(Uri.parse('https://creatoros-backend-rb5b.onrender.com/auth/meta/status'));
+      final metaRes = await http.get(
+        Uri.parse('https://creatoros-backend-rb5b.onrender.com/auth/meta/status'),
+        headers: ApiService.getAuthHeaders,
+      );
       if (metaRes.statusCode == 200) {
         final d = jsonDecode(metaRes.body);
         _isMetaConnected = d['connected'] ?? false;
@@ -56,7 +63,7 @@ class _MasterAISectionState extends State<MasterAISection> {
     try {
       final response = await http.post(
         Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/master-ai/analyze-channel'),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiService.authHeaders,
         body: jsonEncode({'platform': _selectedPlatform}),
       );
       if (response.statusCode == 200) {
