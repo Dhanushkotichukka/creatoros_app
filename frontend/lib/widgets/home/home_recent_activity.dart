@@ -23,7 +23,7 @@ class HomeRecentActivity extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 120,
+          height: 140,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),

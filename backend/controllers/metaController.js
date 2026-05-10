@@ -4,7 +4,9 @@ const path = require('path');
 const { Token } = require('../models');
 require('dotenv').config();
 
-async function resolveIGAccount(accessToken) {
+// ─── Deep IG Account Resolution ──────────────────────────────────────────────
+// Accepts userId so the resolved account is saved to the correct user in DB.
+async function resolveIGAccount(accessToken, userId) {
     try {
         const userRes = await axios.get(`https://graph.facebook.com/v19.0/me?fields=name,id&access_token=${accessToken}`);
         console.log(`[DIAGNOSTIC] Authenticated User: ${userRes.data.name} (ID: ${userRes.data.id})`);
@@ -43,7 +45,7 @@ async function resolveIGAccount(accessToken) {
                 const bizRes = await axios.get(`https://graph.facebook.com/v19.0/me/businesses?access_token=${accessToken}`);
                 console.log('[DIAGNOSTIC] /me/businesses RESPONSE:', JSON.stringify(bizRes.data, null, 2));
                 const businesses = bizRes.data.data || [];
-                debugData.businesses = businesses; // Capture businesses in debug
+                debugData.businesses = businesses;
                 for (const biz of businesses) {
                     const bizPages = await axios.get(`https://graph.facebook.com/v19.0/${biz.id}/owned_pages?fields=instagram_business_account,name&access_token=${accessToken}`);
                     pages = pages.concat(bizPages.data.data || []);
@@ -53,14 +55,13 @@ async function resolveIGAccount(accessToken) {
             }
         }
 
-        // Direct Instagram Account Probe (New Strategy)
+        // Direct Instagram Account Probe
         if (pages.length === 0 || !pages.some(p => p.instagram_business_account)) {
             console.log('[DIAGNOSTIC] Attempting Direct Instagram Account Probe...');
             try {
                 const igAccRes = await axios.get(`https://graph.facebook.com/v19.0/me?fields=instagram_accounts{id,username,name,profile_picture_url},instagram_business_account{id,username,name,profile_picture_url}&access_token=${accessToken}`);
                 const igAccounts = igAccRes.data.instagram_accounts?.data || [];
 
-                // Also check the singular business account field directly on the user
                 if (igAccRes.data.instagram_business_account) {
                     igAccounts.push(igAccRes.data.instagram_business_account);
                 }
@@ -80,7 +81,7 @@ async function resolveIGAccount(accessToken) {
             }
         }
 
-        // Nested Accounts Probe (The "God-Probe")
+        // Nested Accounts Probe
         if (pages.length === 0 || !pages.some(p => p.instagram_business_account)) {
             console.log('[DIAGNOSTIC] Attempting Nested Accounts Probe...');
             try {
@@ -88,7 +89,6 @@ async function resolveIGAccount(accessToken) {
                 const nestedPages = nestedRes.data.accounts?.data || [];
                 debugData.nestedPages = nestedPages;
                 console.log(`[DIAGNOSTIC] Nested Pages Found: ${nestedPages.length}`);
-
                 for (const np of nestedPages) {
                     if (np.instagram_business_account) {
                         pages.push(np);
@@ -101,8 +101,6 @@ async function resolveIGAccount(accessToken) {
 
         console.log(`[DIAGNOSTIC] Total Resolved Pages: ${pages.length}`);
 
-        // Collect ALL pages that have an instagram_business_account linked.
-        // This respects exactly which page the user selected in the OAuth dialog.
         const igPages = [];
         for (const page of pages) {
             console.log(`[DIAGNOSTIC] Page: "${page.name}" (Cat: ${page.category}) - IG Account: ${page.instagram_business_account?.id || 'NONE'}`);
@@ -113,33 +111,40 @@ async function resolveIGAccount(accessToken) {
 
         if (igPages.length === 0) {
             console.warn('[DIAGNOSTIC] No pages with a linked Instagram Business Account found.');
-            // Save debug data if failed
             fs.writeFileSync(debugPath, JSON.stringify(debugData, null, 2));
         } else {
-            // ... rest of the logic ...
             const { page: selectedPage, igId } = igPages[0];
             debugData.selectedIgId = igId;
             console.log(`[DIAGNOSTIC] Using IG from page: "${selectedPage.name}" (IG ID: ${igId})`);
             const igInfo = await axios.get(`https://graph.facebook.com/v19.0/${igId}?fields=username,name,profile_picture_url&access_token=${accessToken}`);
 
-            const DEFAULT_USER_ID = 'default-user-id';
-            let tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
-            if (!tokenDoc) {
-                 tokenDoc = new Token({ userId: DEFAULT_USER_ID, platform: 'meta', accessToken });
-            }
-            tokenDoc.platformAccountId = igId;
-            tokenDoc.extraData = { igUsername: igInfo.data.username };
-            tokenDoc.platformAccountName = igInfo.data.name;
-            tokenDoc.profileAvatar = igInfo.data.profile_picture_url;
-            await tokenDoc.save();
+            // Save to the real user, falling back to 'default-user-id' only if no userId
+            const targetUserId = userId || 'default-user-id';
+            await Token.findOneAndUpdate(
+                { userId: targetUserId, platform: 'meta' },
+                {
+                    userId: targetUserId,
+                    platform: 'meta',
+                    accessToken,
+                    platformAccountId: igId,
+                    platformAccountName: igInfo.data.name,
+                    profileAvatar: igInfo.data.profile_picture_url,
+                    extraData: { igUsername: igInfo.data.username },
+                },
+                { upsert: true, new: true }
+            );
 
-            console.log(`[DIAGNOSTIC] RESOLVED: @${tokenDoc.extraData.igUsername}`);
+            console.log(`[DIAGNOSTIC] RESOLVED: @${igInfo.data.username} for userId=${targetUserId}`);
 
-            // Save successful debug data too
             debugData.resolvedIg = igInfo.data;
             fs.writeFileSync(debugPath, JSON.stringify(debugData, null, 2));
 
-            return true;
+            return {
+                igAccountId: igId,
+                igUsername: igInfo.data.username,
+                igName: igInfo.data.name,
+                igAvatar: igInfo.data.profile_picture_url,
+            };
         }
 
         if (pages.length > 0 && !pages.some(p => p.instagram_business_account)) {
@@ -152,7 +157,7 @@ async function resolveIGAccount(accessToken) {
             fs.writeFileSync(path.join(__dirname, '../utils/meta_debug_error.json'), JSON.stringify(err.response?.data || {message: err.message}, null, 2));
         } catch(e) {}
     }
-    return false;
+    return null;
 }
 
 exports.resolveIGAccount = resolveIGAccount;
@@ -186,36 +191,27 @@ exports.handleCallback = async (req, res) => {
         userId = state ? Buffer.from(state, 'base64').toString('utf8') : null;
     } catch { userId = null; }
 
+    if (!userId) {
+        console.warn('[META] No userId in state — token NOT saved to DB');
+    }
+
     try {
         const tokenResponse = await axios.get(
             `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${APP_ID}&redirect_uri=${REDIRECT_URI}&client_secret=${APP_SECRET}&code=${code}`
         );
         const accessToken = tokenResponse.data.access_token;
 
-        const igData = await resolveIGAccount(accessToken);
+        // resolveIGAccount handles saving token to DB using userId
+        const igData = await resolveIGAccount(accessToken, userId);
 
-        if (userId) {
-            // Save token to DB
+        if (!igData && userId) {
+            // IG resolution failed but still save the raw access token
             await Token.findOneAndUpdate(
                 { userId, platform: 'meta' },
-                {
-                    userId,
-                    platform: 'meta',
-                    accessToken,
-                    platformAccountId: igData?.igAccountId,
-                    platformAccountName: igData?.igUsername || igData?.igName,
-                    ...(igData?.igAvatar && { avatar: igData.igAvatar }),
-                    // Store IG-specific data in platformMetadata field on token
-                    igAccountId: igData?.igAccountId,
-                    igUsername: igData?.igUsername,
-                    igName: igData?.igName,
-                    igAvatar: igData?.igAvatar,
-                },
+                { userId, platform: 'meta', accessToken },
                 { upsert: true, new: true }
             );
-            console.log(`[META] Token saved for userId=${userId}, IG=@${igData?.igUsername}`);
-        } else {
-            console.warn('[META] No userId in state — token NOT saved to DB');
+            console.warn('[META] IG account could not be resolved. Raw token saved.');
         }
 
         res.send(`
@@ -237,29 +233,43 @@ exports.handleCallback = async (req, res) => {
     }
 };
 
-// GET /auth/meta/status — protected
+// GET /auth/meta/status — protected, uses req.user.id
 exports.getStatus = async (req, res) => {
     try {
         const tokenDoc = await Token.findOne({ userId: req.user.id, platform: 'meta' });
         if (!tokenDoc) return res.json({ connected: false });
 
-        // Optionally re-resolve if igAccountId missing
-        if (!tokenDoc.igAccountId && tokenDoc.accessToken) {
-            const igData = await resolveIGAccount(tokenDoc.accessToken);
+        // Re-resolve if igAccountId missing
+        if (!tokenDoc.platformAccountId && tokenDoc.accessToken) {
+            const igData = await resolveIGAccount(tokenDoc.accessToken, req.user.id);
             if (igData) {
-                await Token.findOneAndUpdate({ _id: tokenDoc._id }, { igAccountId: igData.igAccountId, igUsername: igData.igUsername, igName: igData.igName, igAvatar: igData.igAvatar });
-                return res.json({ connected: true, username: igData.igUsername, name: igData.igName, avatar: igData.igAvatar });
+                return res.json({
+                    connected: true,
+                    username: igData.igUsername,
+                    name: igData.igName,
+                    avatar: igData.igAvatar,
+                });
             }
         }
 
         res.json({
             connected: true,
-            username: tokenDoc.igUsername,
-            name: tokenDoc.igName,
-            avatar: tokenDoc.igAvatar,
+            username: tokenDoc.extraData?.igUsername,
+            name: tokenDoc.platformAccountName,
+            avatar: tokenDoc.profileAvatar,
         });
     } catch (e) {
         res.status(500).json({ error: 'Failed to get Meta status' });
+    }
+};
+
+// POST /auth/meta/disconnect — protected, uses req.user.id
+exports.disconnect = async (req, res) => {
+    try {
+        await Token.deleteOne({ userId: req.user.id, platform: 'meta' });
+        res.json({ success: true, message: 'Meta disconnected' });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to disconnect Meta' });
     }
 };
 
@@ -270,7 +280,7 @@ exports.getInstagramAnalytics = async (req, res) => {
         const tokenDoc = await Token.findOne({ userId: req.user.id, platform: 'meta' });
         if (!tokenDoc) return res.status(401).json({ error: 'Meta not connected' });
         const accessToken = tokenDoc.accessToken;
-        const igId = igAccountId || tokenDoc.igAccountId;
+        const igId = igAccountId || tokenDoc.platformAccountId;
 
         const response = await axios.get(`https://graph.facebook.com/v19.0/${igId}/insights`, {
             params: { metric: 'impressions,reach,profile_views', period: 'day', metric_type: 'total_value', access_token: accessToken }
@@ -288,9 +298,8 @@ exports.getInstagramAnalytics = async (req, res) => {
 // GET /auth/meta/facebook/analytics — protected
 exports.getFacebookAnalytics = async (req, res) => {
     const { pageId } = req.query;
-    const DEFAULT_USER_ID = 'default-user-id';
-    const tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
-    const accessToken = req.headers.authorization?.split(' ')[1] || tokenDoc?.accessToken;
+    const tokenDoc = await Token.findOne({ userId: req.user.id, platform: 'meta' });
+    const accessToken = tokenDoc?.accessToken;
 
     if (!pageId || !accessToken) {
         return res.status(400).json({ error: 'Missing pageId or access token' });
@@ -306,25 +315,10 @@ exports.getFacebookAnalytics = async (req, res) => {
     }
 };
 
-exports.getStatus = async (req, res) => {
-    const DEFAULT_USER_ID = 'default-user-id';
-    const tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
-    if (tokenDoc?.accessToken && !tokenDoc?.platformAccountId) {
-        await resolveIGAccount(tokenDoc?.accessToken);
-    }
-    res.json({
-        connected: !!tokenDoc?.accessToken,
-        username: tokenDoc?.extraData?.igUsername,
-        name: tokenDoc?.platformAccountName,
-        avatar: tokenDoc?.profileAvatar
-    });
-};
-
 exports.publishToInstagram = async (mediaUrls, metadata, userId = 'default-user-id') => {
     const tokenDoc = await Token.findOne({ userId, platform: 'meta' });
     if (!tokenDoc?.accessToken || !tokenDoc?.platformAccountId) throw new Error('Instagram not connected');
 
-    // Convert to array if it is a single string (backwards compatibility)
     const urls = Array.isArray(mediaUrls) ? mediaUrls : [mediaUrls];
     if (urls.length === 0) throw new Error('No media URLs provided');
 
@@ -333,6 +327,9 @@ exports.publishToInstagram = async (mediaUrls, metadata, userId = 'default-user-
         const ext = p.split('.').pop();
         return ['mp4', 'mov', 'avi', 'webm', 'mkv', 'wmv'].includes(ext);
     };
+
+    const accessToken = tokenDoc?.accessToken;
+    const igId = tokenDoc?.platformAccountId;
 
     const pollStatus = async (creationId, isVid = false) => {
         let attempts = 0;
@@ -348,33 +345,18 @@ exports.publishToInstagram = async (mediaUrls, metadata, userId = 'default-user-
         throw new Error('Video processing timed out on Meta side');
     };
 
-    // STORY
-    if (postType === 'STORY') {
-        const url = urls[0]; const isVid = isVideo(url);
-        const params = { media_type: 'STORIES', access_token: accessToken };
-        if (isVid) params.video_url = url; else params.image_url = url;
-        const r = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media`, null, { params });
-        await pollStatus(r.data.id);
-        const pub = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media_publish`, null, { params: { creation_id: r.data.id, access_token: accessToken } });
-        return { success: true, platform: 'Instagram', id: pub.data.id, postType: 'STORY' };
-    }
-
     try {
-        const accessToken = tokenDoc?.accessToken;
-        const igId = tokenDoc?.platformAccountId;
-
-        // PREPARE CAPTION (Stories don't support captions via API)
         const titlePart = metadata.title ? `${metadata.title.toUpperCase()}\n\n` : '';
         const descPart = metadata.description ? `${metadata.description}\n\n` : '';
         const hashtagsPart = (metadata.hashtags && metadata.hashtags.length > 0)
             ? metadata.hashtags.map(tag => tag.startsWith('#') ? tag : `#${tag}`).join(' ')
             : '';
+        const postType = metadata.postType || 'POST';
         const unifiedCaption = (postType === 'STORY') ? '' : `${titlePart}${descPart}${hashtagsPart}`.trim();
 
-        // ────── CASE 1: STORY (Single Media Only) ──────
+        // ── STORY ──
         if (postType === 'STORY') {
-            const url = urls[0];
-            const isVid = isVideo(url);
+            const url = urls[0]; const isVid = isVideo(url);
             const params = { media_type: 'STORIES', access_token: accessToken };
             if (isVid) params.video_url = url; else params.image_url = url;
             const r = await axios.post(`https://graph.facebook.com/v19.0/${igId}/media`, null, { params });
@@ -383,7 +365,7 @@ exports.publishToInstagram = async (mediaUrls, metadata, userId = 'default-user-
             return { success: true, platform: 'Instagram', id: pub.data.id, postType: 'STORY' };
         }
 
-        // ────── CASE 2: CAROUSEL (Multiple Items) ──────
+        // ── CAROUSEL ──
         if (urls.length > 1) {
             const itemIds = [];
             for (const url of urls) {
@@ -401,7 +383,7 @@ exports.publishToInstagram = async (mediaUrls, metadata, userId = 'default-user-
             return { success: true, platform: 'Instagram', id: pub.data.id, postType: 'CAROUSEL' };
         }
 
-        // ────── CASE 3: SINGLE (Image or Video/Reel) ──────
+        // ── SINGLE ──
         const url = urls[0]; const isVid = isVideo(url);
         const params = { caption: unifiedCaption, access_token: accessToken };
         if (isVid) { params.video_url = url; params.media_type = 'REELS'; params.share_to_feed = true; } else { params.image_url = url; }
@@ -414,11 +396,4 @@ exports.publishToInstagram = async (mediaUrls, metadata, userId = 'default-user-
         console.error('[INSTAGRAM] Publishing error:', error.message);
         throw error;
     }
-};
-
-// POST /auth/meta/disconnect — protected
-exports.disconnect = async (req, res) => {
-    const DEFAULT_USER_ID = 'default-user-id';
-    await Token.deleteOne({ userId: DEFAULT_USER_ID, platform: 'meta' });
-    res.json({ success: true, message: 'Meta disconnected' });
 };

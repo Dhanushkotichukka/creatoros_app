@@ -13,8 +13,12 @@ const CLIENT_SECRET = process.env.LINKEDIN_CLIENT_SECRET;
 const REDIRECT_URI = 'https://creatoros-backend-rb5b.onrender.com/auth/linkedin/callback';
 
 exports.getLoginUrl = (req, res) => {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const state = Buffer.from(userId.toString()).toString('base64');
     const scopes = ['openid', 'profile', 'email', 'w_member_social'];
-    const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=${scopes.join('%20')}`;
+    const url = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&scope=${scopes.join('%20')}&state=${state}`;
     res.json({ url });
 };
 
@@ -33,13 +37,23 @@ const decodeJWT = (token) => {
 };
 
 exports.handleCallback = async (req, res) => {
-    const { code, error, error_description } = req.query;
+    const { code, error, error_description, state } = req.query;
 
     if (error) {
         return res.status(400).send(`LinkedIn OAuth Error: ${error_description || error}`);
     }
 
     if (!code) return res.status(400).send('No code provided');
+
+    // Decode the userId from state param
+    let userId = null;
+    try {
+        userId = state ? Buffer.from(state, 'base64').toString('utf8') : null;
+    } catch { userId = null; }
+
+    if (!userId) {
+        console.warn('[LINKEDIN] No userId found in state param — token will not be saved to a real user.');
+    }
 
     try {
         const tokenResponse = await axios.post('https://www.linkedin.com/oauth/v2/accessToken',
@@ -63,13 +77,10 @@ exports.handleCallback = async (req, res) => {
         if (idToken) {
             const decoded = decodeJWT(idToken);
             if (decoded) {
-                global.linkedinUserUrn = `urn:li:person:${decoded.sub}`;
-                global.linkedinName = decoded.name || (decoded.given_name ? `${decoded.given_name} ${decoded.family_name || ''}` : null);
-                global.linkedinAvatar = decoded.picture;
-
-                const { saveSessions } = require('../utils/sessionHelper');
-                saveSessions();
-                console.log('LinkedIn Profile loaded from ID Token.');
+                linkedinUserUrn = `urn:li:person:${decoded.sub}`;
+                linkedinName = decoded.name || (decoded.given_name ? `${decoded.given_name} ${decoded.family_name || ''}` : null);
+                linkedinAvatar = decoded.picture;
+                console.log('[LINKEDIN] Profile loaded from ID Token.');
             }
         }
 
@@ -79,35 +90,38 @@ exports.handleCallback = async (req, res) => {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 const profile = profileRes.data;
-                global.linkedinUserUrn = `urn:li:person:${profile.sub}`;
-                global.linkedinName = profile.name;
-                global.linkedinAvatar = profile.picture;
-
-                const { saveSessions } = require('../utils/sessionHelper');
-                saveSessions();
+                linkedinUserUrn = `urn:li:person:${profile.sub}`;
+                linkedinName = profile.name;
+                linkedinAvatar = profile.picture;
             } catch (profileErr) {
                 console.error('LinkedIn Sync Error:', profileErr.response?.data || profileErr.message);
                 try {
                     const legacyRes = await axios.get('https://api.linkedin.com/v2/me', {
                         headers: { 'Authorization': `Bearer ${accessToken}` }
                     });
-                    global.linkedinUserUrn = `urn:li:person:${legacyRes.data.id}`;
-                    global.linkedinName = `${legacyRes.data.localizedFirstName || ''} ${legacyRes.data.localizedLastName || ''}`.trim();
+                    linkedinUserUrn = `urn:li:person:${legacyRes.data.id}`;
+                    linkedinName = `${legacyRes.data.localizedFirstName || ''} ${legacyRes.data.localizedLastName || ''}`.trim();
                 } catch (legacyErr) { }
             }
         }
 
-        const DEFAULT_USER_ID = 'default-user-id';
-        let tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
-        if (!tokenDoc) {
-            tokenDoc = new Token({ userId: DEFAULT_USER_ID, platform: 'linkedin', accessToken });
+        if (userId) {
+            await Token.findOneAndUpdate(
+                { userId, platform: 'linkedin' },
+                {
+                    userId,
+                    platform: 'linkedin',
+                    accessToken,
+                    platformAccountId: linkedinUserUrn,
+                    platformAccountName: linkedinName,
+                    profileAvatar: linkedinAvatar,
+                },
+                { upsert: true, new: true }
+            );
+            console.log(`[LINKEDIN] Token saved for userId=${userId}, name=${linkedinName}`);
         } else {
-            tokenDoc.accessToken = accessToken;
+            console.warn('[LINKEDIN] No userId — token NOT saved to DB');
         }
-        tokenDoc.platformAccountId = linkedinUserUrn;
-        tokenDoc.platformAccountName = linkedinName;
-        tokenDoc.profileAvatar = linkedinAvatar;
-        await tokenDoc.save();
 
         res.send(`
             <html>
@@ -547,13 +561,19 @@ exports.fetchRecentPosts = async (accessToken, authorUrn) => {
 };
 
 exports.getStatus = async (req, res) => {
-    const DEFAULT_USER_ID = 'default-user-id';
-    const tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
-    res.json({ connected: !!tokenDoc?.accessToken, name: tokenDoc?.platformAccountName, avatar: tokenDoc?.profileAvatar, urn: tokenDoc?.platformAccountId });
+    try {
+        const tokenDoc = await Token.findOne({ userId: req.user.id, platform: 'linkedin' });
+        res.json({ connected: !!tokenDoc?.accessToken, name: tokenDoc?.platformAccountName, avatar: tokenDoc?.profileAvatar, urn: tokenDoc?.platformAccountId });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to get LinkedIn status' });
+    }
 };
 
 exports.disconnect = async (req, res) => {
-    const DEFAULT_USER_ID = 'default-user-id';
-    await Token.deleteOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
-    res.json({ success: true, message: 'LinkedIn disconnected' });
+    try {
+        await Token.deleteOne({ userId: req.user.id, platform: 'linkedin' });
+        res.json({ success: true, message: 'LinkedIn disconnected' });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to disconnect LinkedIn' });
+    }
 };

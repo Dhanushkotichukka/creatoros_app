@@ -169,9 +169,13 @@ class _HubScreenState extends State<HubScreen> with TickerProviderStateMixin {
                   children: [
                     const Text('👋', style: TextStyle(fontSize: 24)),
                     const SizedBox(width: 8),
-                    Text(
-                      '$_greeting, Creator!',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    Flexible(
+                      child: Text(
+                        '$_greeting, Creator!',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ],
                 ),

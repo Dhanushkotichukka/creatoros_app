@@ -26,8 +26,7 @@ class VideoTabs extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            height: 420,
+          Expanded(
             child: TabBarView(
               children: [
                 _buildVideoList(context, videos),

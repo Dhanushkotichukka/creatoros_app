@@ -151,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   _buildPlatformStatsGrid(context, connectedP, c)
                 else
                   SizedBox(
-                    height: 175,
+                    height: 225,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(),

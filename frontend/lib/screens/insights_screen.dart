@@ -362,16 +362,20 @@ class _InsightCardState extends State<_InsightCard>
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.2,
                               ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          const SizedBox(width: 6),
                           // Confidence Level
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                             decoration: BoxDecoration(
                               color: c.background,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Row(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 Container(
                                   width: 6, height: 6,
@@ -379,7 +383,7 @@ class _InsightCardState extends State<_InsightCard>
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  'Confidence: $conf',
+                                  conf,
                                   style: TextStyle(fontSize: 10, color: c.textSecondary, fontWeight: FontWeight.w600),
                                 ),
                               ],
@@ -392,28 +396,36 @@ class _InsightCardState extends State<_InsightCard>
 
                       // Compare Text & Status
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: accent.withOpacity(0.09),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              cfg['statusLabel'] as String? ?? '',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: accent,
-                                fontWeight: FontWeight.w600,
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: accent.withOpacity(0.09),
+                                borderRadius: BorderRadius.circular(8),
                               ),
+                              child: Text(
+                                cfg['statusLabel'] as String? ?? '',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: accent,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              cfg['compareText'] as String? ?? '',
+                              style: TextStyle(fontSize: 11, color: c.textSecondary),
+                              textAlign: TextAlign.end,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            cfg['compareText'] as String? ?? '',
-                            style: TextStyle(fontSize: 11, color: c.textSecondary),
                           ),
                         ],
                       ),

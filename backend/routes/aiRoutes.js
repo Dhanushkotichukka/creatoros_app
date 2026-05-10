@@ -38,7 +38,9 @@ router.post('/metadata', async (req, res) => {
         const { topic } = req.body;
         if (!topic) return res.status(400).json({ error: 'Topic is required' });
         const result = await aiService.generateMetadata(topic);
-        res.json({ data: result });
+        // Return hashtags at top-level so Flutter client can read json['hashtags']
+        const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+        res.json({ hashtags: parsed?.hashtags || parsed?.title || result, data: parsed });
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: 'Failed to generate metadata' });
@@ -96,5 +98,22 @@ router.post('/my-ai/extract-transcript', aiController.extractTranscript);
 router.post('/my-ai/generate-script', aiController.generateScript);
 router.post('/my-ai/modify-script', aiController.modifyScript);
 router.post('/master-ai/analyze-channel', aiController.analyzeChannelInsights);
+
+// This endpoint is called by the Flutter app's generateMasterScripts method
+router.post('/master-ai/generate-batch', async (req, res) => {
+    try {
+        const { niche, targetAudience } = req.body;
+        // Build a topic from niche + target audience and get AI script ideas
+        const prompt = niche || targetAudience || 'Content Creation';
+        const raw = await aiService.generateScript(prompt);
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        // Return as 'scripts' array so Flutter reads json['scripts']
+        const scripts = Array.isArray(parsed) ? parsed : [parsed];
+        res.json({ scripts });
+    } catch (e) {
+        console.error('[MASTER-AI BATCH]', e.message);
+        res.status(500).json({ error: 'Failed to generate batch scripts', scripts: [] });
+    }
+});
 
 module.exports = router;
