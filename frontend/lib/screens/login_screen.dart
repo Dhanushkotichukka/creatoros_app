@@ -1,13 +1,33 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_colors.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  bool _webRedirecting = false;
 
   void _handleGoogleSignIn(BuildContext context) async {
     final authProvider = context.read<AuthProvider>();
+
+    if (kIsWeb) {
+      setState(() => _webRedirecting = true);
+      // On web, signInWithGoogle() launches the backend OAuth URL and
+      // the browser navigates away. The app restarts with ?auth_token= on return.
+      await authProvider.signInWithGoogle();
+      // If we get here (browser didn't navigate away), reset the flag
+      if (mounted) setState(() => _webRedirecting = false);
+      return;
+    }
+
+    // Mobile flow
     final success = await authProvider.signInWithGoogle();
     if (!success && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -52,20 +72,33 @@ class LoginScreen extends StatelessWidget {
               const SizedBox(height: 32),
 
               Text('CreatorOS',
-                style: TextStyle(
-                  fontSize: 36, fontWeight: FontWeight.w900,
-                  color: c.textPrimary, letterSpacing: -1,
-                )),
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w900,
+                    color: c.textPrimary,
+                    letterSpacing: -1,
+                  )),
               const SizedBox(height: 12),
               Text('The Ultimate Hub for Modern Creators',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: c.textSecondary)),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: c.textSecondary)),
 
               const Spacer(flex: 1),
 
-              // Sign In Button
-              if (authProvider.isLoading)
-                CircularProgressIndicator(color: c.primary)
+              // Sign In Button / Loading State
+              if (authProvider.isLoading || _webRedirecting)
+                Column(
+                  children: [
+                    CircularProgressIndicator(color: c.primary),
+                    const SizedBox(height: 16),
+                    Text(
+                      _webRedirecting
+                          ? 'Redirecting to Google...'
+                          : 'Signing you in...',
+                      style: TextStyle(color: c.textSecondary, fontSize: 14),
+                    ),
+                  ],
+                )
               else
                 SizedBox(
                   width: double.infinity,
@@ -83,22 +116,32 @@ class LoginScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          width: 24, height: 24,
-                          decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.white),
-                          child: const Icon(Icons.g_mobiledata, color: Colors.blue, size: 28),
+                          width: 24,
+                          height: 24,
+                          decoration: const BoxDecoration(
+                              shape: BoxShape.circle, color: Colors.white),
+                          child: const Icon(Icons.g_mobiledata,
+                              color: Colors.blue, size: 28),
                         ),
                         const SizedBox(width: 12),
                         const Text('Continue with Google',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5)),
                       ],
                     ),
                   ),
                 ),
 
               const SizedBox(height: 24),
-              Text('By continuing, you agree to our Terms of Service and Privacy Policy.',
+              Text(
+                'By continuing, you agree to our Terms of Service and Privacy Policy.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: c.textSecondary.withOpacity(0.6))),
+                style: TextStyle(
+                    fontSize: 12,
+                    color: c.textSecondary.withOpacity(0.6)),
+              ),
               const Spacer(flex: 2),
             ],
           ),

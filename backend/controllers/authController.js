@@ -92,7 +92,7 @@ const googleAuth = async (req, res) => {
 // GET /auth/google-signin/me — requires JWT via authMiddleware
 const getMe = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('name email profilePicture phone bio creatorScore');
+        const user = await User.findOne({ _id: req.user.id }).select('name email profilePicture phone bio creatorScore');
         if (!user) return res.status(404).json({ error: 'User not found' });
         return res.json({ user });
     } catch (error) {
@@ -105,13 +105,16 @@ const getMe = async (req, res) => {
 const updateProfile = async (req, res) => {
     try {
         const { name, phone, bio } = req.body;
-        const user = await User.findByIdAndUpdate(
-            req.user.id,
-            { ...(name && { name }), ...(phone !== undefined && { phone }), ...(bio !== undefined && { bio }) },
+        const user = await User.findOneAndUpdate(
+            { _id: req.user.id },
+            { $set: { ...(name && { name }), ...(phone !== undefined && { phone }), ...(bio !== undefined && { bio }) } },
             { new: true }
         ).select('name email profilePicture phone bio creatorScore');
 
-        if (!user) return res.status(404).json({ error: 'User not found' });
+        if (!user) {
+            console.error('[AUTH] updateProfile: user not found for id:', req.user.id);
+            return res.status(404).json({ error: 'User not found' });
+        }
 
         console.log(`[AUTH] Profile updated for: ${user.email}`);
         return res.json({ user });

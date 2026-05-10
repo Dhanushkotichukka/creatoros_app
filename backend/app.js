@@ -32,11 +32,27 @@ app.use((req, res, next) => {
 });
 
 console.log('Initializing middleware...');
+
+const ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://localhost:8080',
+    process.env.FRONTEND_WEB_URL,
+    process.env.RENDER_EXTERNAL_URL
+].filter(Boolean);
+
 app.use(cors({
-    origin: '*',
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or Postman)
+        if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error(`CORS policy: Origin '${origin}' is not allowed`));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 
 // Routes

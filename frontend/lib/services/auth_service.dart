@@ -80,17 +80,43 @@ class AuthService {
     }
   }
 
+  /// Decode JWT payload locally (no network needed) to get basic user info
+  Map<String, dynamic>? _decodeJwtPayload(String token) {
+    try {
+      final parts = token.split('.');
+      if (parts.length != 3) return null;
+      String payload = parts[1];
+      // Pad to valid base64 length
+      while (payload.length % 4 != 0) {
+        payload += '=';
+      }
+      // Convert base64url → base64
+      payload = payload.replaceAll('-', '+').replaceAll('_', '/');
+      final decoded = utf8.decode(base64.decode(payload));
+      return jsonDecode(decoded) as Map<String, dynamic>;
+    } catch (e) {
+      debugPrint('JWT decode error: $e');
+      return null;
+    }
+  }
+
   /// Called after web redirect returns — token is in URL params.
-  /// Fetches user profile from backend using the stored token.
+  /// Decodes the JWT locally and returns basic user info immediately.
   Future<Map<String, dynamic>?> handleWebRedirectToken(String token) async {
     try {
       await storeToken(token);
-      final response = await http.get(
-        Uri.parse('${ApiService.baseUrl}/auth/google-signin/me'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
-      );
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body)['user'];
+      // Decode JWT payload locally — no network call needed
+      final payload = _decodeJwtPayload(token);
+      if (payload != null) {
+        return {
+          'id': payload['id'] ?? '',
+          'name': payload['name'] ?? '',
+          'email': payload['email'] ?? '',
+          'profilePicture': payload['profilePicture'] ?? '',
+          'phone': '',
+          'bio': '',
+          'creatorScore': 0,
+        };
       }
     } catch (e) {
       debugPrint('handleWebRedirectToken error: $e');
