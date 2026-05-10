@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
-
+const axios = require('axios');
+const Parser = require('rss-parser');
+const rssParser = new Parser();
+const youtubeController = require('../controllers/youtubeController');
 const Token = require('../models/Token');
 
 // Middleware to inject platform context per user request
@@ -28,10 +31,6 @@ router.use(async (req, res, next) => {
     }
     next();
 });
-const axios = require('axios');
-const Parser = require('rss-parser');
-const rssParser = new Parser();
-const youtubeController = require('../controllers/youtubeController');
 
 // ─── KNOWN CHANNEL FALLBACK ──────────────────────────────────────────
 // Reliable fallback channel for RSS (MKBHD) to prevent empty data states

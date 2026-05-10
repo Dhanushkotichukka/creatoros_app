@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
@@ -24,13 +24,17 @@
     "google-trends-api": "^4.9.2",
     "googleapis": "^171.4.0",
     "groq-sdk": "^1.1.1",
-    "jsonwebtoken": "^9.0.2",
-    "mongoose": "^8.3.4",
+    "mongoose": "^9.6.2",
     "multer": "^2.1.1",
+    "node-cron": "^4.2.1",
     "openai": "^6.29.0",
-    "pg": "^8.20.0",
-    "pg-hstore": "^2.3.4",
     "rss-parser": "^3.13.0",
+    "uuid": "^9.0.1",
     "youtube-captions-scraper": "^2.0.3"
+  },
+  "devDependencies": {
+    "jest": "^30.4.2",
+    "mongodb-memory-server": "^11.1.0",
+    "supertest": "^7.2.2"
   }
 }

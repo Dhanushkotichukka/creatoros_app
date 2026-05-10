@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
 const userSchema = new mongoose.Schema({
+  _id: {
+    type: String,
+    default: uuidv4
+  },
   name: {
     type: String,
     required: true,
@@ -8,10 +13,6 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: true,
-    unique: true,
-  },
-  googleId: {
-    type: String,
     unique: true,
     sparse: true, // Allows multiple null googleIds
   },
@@ -29,12 +30,12 @@ const userSchema = new mongoose.Schema({
     default: 0,
   },
   preferences: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
+    type: Object,
     default: {},
   }
 }, {
   timestamps: true,
 });
 
-module.exports = mongoose.model('User', userSchema);
+const User = mongoose.model('User', userSchema);
+module.exports = User;

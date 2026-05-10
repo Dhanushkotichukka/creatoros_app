@@ -1,7 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
-const { connectDatabase } = require('./models');
+const { syncDatabase } = require('./models');
 
 const path = require('path');
 const fs = require('fs');
@@ -19,7 +19,8 @@ process.on('unhandledRejection', (reason, promise) => {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Platform tokens are now stored in MongoDB Token collection, managed per-user
+// Initialize session helpers if needed, but globals are removed
+// loadSessions();
 
 // Serve static uploads
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -76,9 +77,12 @@ app.get('/', (req, res) => {
     res.json({ message: 'CreatorOS Backend API is running' });
 });
 
-console.log('Connecting to MongoDB...');
-connectDatabase().then(() => {
+const schedulerService = require('./services/schedulerService');
+
+console.log('Connecting to database...');
+syncDatabase().then(() => {
     console.log('Starting server...');
+    schedulerService.start();
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT} (Listening on all interfaces)`);
         setInterval(() => {}, 1000 * 60 * 60);

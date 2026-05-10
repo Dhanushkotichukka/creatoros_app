@@ -1,24 +1,56 @@
 const mongoose = require('mongoose');
+const { v4: uuidv4 } = require('uuid');
 
 const scriptSchema = new mongoose.Schema({
-    topicTitle: {
-        type: String,
-        required: true,
-    },
-    folder: {
-        type: String,
-        default: 'general',
-    },
-    hook: { type: String },
-    mainContent: { type: String },
-    callToAction: { type: String },
-    sourceDetails: {
-        type: mongoose.Schema.Types.Mixed, // { type: 'YouTube', url: '...', views: '...', date: '...' }
-    },
-    trendReason: { type: String },
-    aiRating: { type: Number },
+  _id: {
+    type: String,
+    default: uuidv4
+  },
+  userId: {
+    type: String,
+    ref: 'User'
+  },
+  contentId: {
+    type: String,
+    ref: 'Content'
+  },
+  title: {
+    type: String,
+    required: true,
+  },
+  topic: {
+    type: String,
+  },
+  content: {
+    type: String,
+    required: true,
+  },
+  hook: {
+    type: String,
+  },
+  body: {
+    type: String,
+  },
+  callToAction: {
+    type: String,
+  },
+  durationEstimate: {
+    type: Number,
+  },
+  aiModelUsed: {
+    type: String,
+  },
+  platform: {
+    type: String,
+  },
+  status: {
+    type: String,
+    enum: ['draft', 'ready', 'used'],
+    default: 'draft',
+  }
 }, {
-    timestamps: true,
+  timestamps: true,
 });
 
-module.exports = mongoose.model('Script', scriptSchema);
+const Script = mongoose.model('Script', scriptSchema);
+module.exports = Script;
