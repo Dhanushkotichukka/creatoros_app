@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:convert';
+import '../../services/api_service.dart';
 import '../../utils/app_colors.dart';
 
 class AIScriptScreen extends StatefulWidget {
@@ -109,7 +110,7 @@ class _AIScriptScreenState extends State<AIScriptScreen>
     try {
       final response = await http.post(
         Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/my-ai/generate-script'),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiService.authHeaders,
         body: jsonEncode({
           'topic': _topic,
           'platform': _platform,
@@ -160,7 +161,7 @@ class _AIScriptScreenState extends State<AIScriptScreen>
     try {
       final response = await http.post(
         Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/my-ai/modify-script'),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiService.authHeaders,
         body: jsonEncode({
           'section': key,
           'currentText': ctrl.text,
@@ -181,7 +182,7 @@ class _AIScriptScreenState extends State<AIScriptScreen>
     try {
       await http.post(
         Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/scripts'),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiService.authHeaders,
         body: jsonEncode({
           'topicTitle': _topic,
           'sourceDetails': _sourceDetails,
@@ -789,7 +790,9 @@ class _AIScriptScreenState extends State<AIScriptScreen>
             ],
           ),
           const SizedBox(height: 14),
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
             children: _languages.map((lang) {
               final sel = _language == lang;
               final isTelugu = lang == 'Telugu';
@@ -798,7 +801,7 @@ class _AIScriptScreenState extends State<AIScriptScreen>
                 onTap: () => setState(() => _language = lang),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  margin: const EdgeInsets.only(right: 10),
+                  margin: const EdgeInsets.only(right: 0),
                   padding: const EdgeInsets.symmetric(
                       horizontal: 18, vertical: 12),
                   decoration: BoxDecoration(
@@ -1051,7 +1054,10 @@ class _AIScriptScreenState extends State<AIScriptScreen>
   }
 
   Widget _buildRatingRow(AppColors c) {
-    return Row(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1066,7 +1072,6 @@ class _AIScriptScreenState extends State<AIScriptScreen>
                     fontWeight: FontWeight.bold, color: Colors.amber)),
           ]),
         ),
-        const SizedBox(width: 10),
         Container(
           padding:
               const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1085,8 +1090,7 @@ class _AIScriptScreenState extends State<AIScriptScreen>
                     fontSize: 12)),
           ]),
         ),
-        if (_estimatedDuration.isNotEmpty) ...[
-          const SizedBox(width: 10),
+        if (_estimatedDuration.isNotEmpty)
           Container(
             padding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1104,12 +1108,9 @@ class _AIScriptScreenState extends State<AIScriptScreen>
                       fontSize: 12)),
             ]),
           ),
-        ],
-        const Spacer(),
         TextButton.icon(
-          onPressed: () => setState(() {
-            _hasGenerated = false;
-          }),
+          onPressed: () =>
+              setState(() { _hasGenerated = false; }),
           icon: Icon(Icons.tune, size: 16, color: c.textSecondary),
           label: Text('Edit Settings',
               style: TextStyle(color: c.textSecondary, fontSize: 12)),
@@ -1349,50 +1350,54 @@ class _AIScriptScreenState extends State<AIScriptScreen>
   }
 
   Widget _buildWorkspaceActions(AppColors c) {
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: OutlinedButton.icon(
-            onPressed: _copyAll,
-            icon: Icon(Icons.copy, size: 16, color: c.textSecondary),
-            label: Text('Copy All',
-                style: TextStyle(
-                    color: c.textSecondary, fontWeight: FontWeight.w600)),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: c.border),
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _copyAll,
+                icon: Icon(Icons.copy, size: 16, color: c.textSecondary),
+                label: Text('Copy All',
+                    style: TextStyle(
+                        color: c.textSecondary, fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: c.border),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: FilledButton.icon(
-            onPressed: _saveScript,
-            icon: const Icon(Icons.bookmark_add, size: 16),
-            label: const Text('Save Script',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            style: FilledButton.styleFrom(
-              backgroundColor: c.primary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: _saveScript,
+                icon: const Icon(Icons.bookmark_add, size: 16),
+                label: const Text('Save Script',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: c.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(width: 12),
+        const SizedBox(height: 10),
         FilledButton.icon(
           onPressed: () => setState(() => _hasGenerated = false),
           icon: const Icon(Icons.refresh, size: 16),
-          label: const Text('Regenerate',
+          label: const Text('Regenerate with Different Settings',
               style: TextStyle(fontWeight: FontWeight.bold)),
           style: FilledButton.styleFrom(
             backgroundColor: Colors.grey.shade700,
             foregroundColor: Colors.white,
-            padding:
-                const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+            padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),
           ),

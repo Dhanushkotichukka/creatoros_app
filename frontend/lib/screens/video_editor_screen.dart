@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../services/api_service.dart';
 import '../widgets/studio/opencut_editor_widget.dart';
 
 /// Full-screen OpenCut editor screen.
@@ -52,7 +53,7 @@ class _VideoEditorScreenState extends State<VideoEditorScreen> {
     try {
       await http.post(
         Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/media/save-export'),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiService.authHeaders,
         body: jsonEncode({
           'exportUrl': exportUrl,
           'title': widget.projectTitle ?? 'Edited Video',

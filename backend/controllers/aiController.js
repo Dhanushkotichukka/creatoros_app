@@ -175,13 +175,18 @@ exports.extractTranscript = async (req, res) => {
 };
 
 exports.generateScript = async (req, res) => {
-    const { topic, platform, styleMode, contentType, scriptLength, sourceTranscripts } = req.body;
+    const { topic, platform, styleMode, contentType, scriptLength, language, sourceContext, sourceTranscripts } = req.body;
     try {
         const context = sourceTranscripts?.length > 0
             ? sourceTranscripts.map(t => `TITLE: ${t.title}\nTRANSCRIPT: ${t.transcript?.slice(0, 1200) || 'NOT AVAILABLE'}`).join('\n\n')
             : 'No source transcript provided.';
 
-        const prompt = `You are a world-class viral script writer. Topic: "${topic}". Context:\n${context}\nPlatform: ${platform}. Style: ${styleMode}. Type: ${contentType}. Length: ${scriptLength}.\nIf transcript says "NOT AVAILABLE", create a brilliant original script about the topic.\nReturn JSON: { "hook": "...", "mainContent": ["point1","point2","point3"], "callToAction": "...", "hashtags": [], "estimatedDuration": "..." }`;
+        const isMultilingual = language && language.toLowerCase() !== 'english';
+        const teluguInstruction = isMultilingual
+            ? `\nALSO include a "teluguVersion" key with the script adapted to natural, conversational Telugu — same structure (hook, mainContent array, callToAction).`
+            : '';
+
+        const prompt = `You are a world-class viral script writer. Topic: "${topic}". Context:\n${context}\nPlatform: ${platform}. Style: ${styleMode}. Type: ${contentType}. Length: ${scriptLength}. Language: ${language || 'English'}.\nIf transcript says "NOT AVAILABLE", create a brilliant original script about the topic.${teluguInstruction}\nReturn JSON: { "hook": "...", "mainContent": ["point1","point2","point3"], "callToAction": "...", "hashtags": ["#tag1","#tag2"], "estimatedDuration": "45 seconds", "aiRating": 8.5, "provenance": "Strategy reasoning here"${isMultilingual ? ', "teluguVersion": { "hook": "...", "mainContent": ["..."], "callToAction": "..." }' : ''} }`;
 
         const raw = await safePrompt({ prompt, json: true });
         res.json({ scriptPackage: JSON.parse(raw) });

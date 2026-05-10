@@ -170,11 +170,11 @@ class _StorageManagerState extends State<StorageManager> {
         Row(
           children: [
             _buildGridItem('Videos', Icons.videocam_rounded, const Color(0xFF1565C0), theme),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             _buildGridItem('Images', Icons.image_rounded, const Color(0xFF2E7D32), theme),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             _buildGridItem('Sounds', Icons.audiotrack_rounded, const Color(0xFFC62828), theme),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             _buildGridItem('Edits', Icons.edit_document, const Color(0xFF6A1B9A), theme),
           ],
         ),
@@ -398,31 +398,34 @@ class _StorageManagerState extends State<StorageManager> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
-                padding: const EdgeInsets.only(left: 12, top: 12, right: 12),
+                padding: const EdgeInsets.only(left: 8, top: 12, right: 8),
                 child: Row(
                   children: [
-                    Icon(icon, color: color, size: 16),
-                    const SizedBox(width: 6),
-                    Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color)),
+                    Icon(icon, color: color, size: 14),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: color), maxLines: 1, overflow: TextOverflow.clip),
+                    ),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text('$count\nFiles', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, height: 1.2)),
-                    const Spacer(),
+                    Expanded(
+                      child: Text('$count\nFiles', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, height: 1.2)),
+                    ),
                     Text('1.2 GB', style: TextStyle(fontSize: 9, color: theme.colorScheme.onSurface.withOpacity(0.5))),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Container(
                   height: 4,
                   width: 40,

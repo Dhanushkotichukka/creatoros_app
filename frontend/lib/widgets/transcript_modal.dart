@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../services/api_service.dart';
 import '../utils/app_colors.dart';
 
 /// Bottom sheet modal that fetches and displays a video transcript.
@@ -75,7 +76,7 @@ class _TranscriptModalState extends State<TranscriptModal> {
     try {
       final response = await http.post(
         Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/my-ai/extract-transcript'),
-        headers: {'Content-Type': 'application/json'},
+        headers: ApiService.authHeaders,
         body: jsonEncode({
           'videoId': widget.videoId,
           'title': widget.videoTitle,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import '../../services/api_service.dart';
 import '../../utils/app_colors.dart';
 
 class AIScriptLibrary extends StatefulWidget {
@@ -24,7 +25,10 @@ class _AIScriptLibraryState extends State<AIScriptLibrary> {
   Future<void> _fetchScripts() async {
     setState(() => _isLoading = true);
     try {
-      final response = await http.get(Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/scripts'));
+      final response = await http.get(
+        Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/scripts'),
+        headers: ApiService.getAuthHeaders,
+      );
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
@@ -43,7 +47,10 @@ class _AIScriptLibraryState extends State<AIScriptLibrary> {
 
   Future<void> _deleteScript(String id) async {
     try {
-       final response = await http.delete(Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/scripts/$id'));
+       final response = await http.delete(
+         Uri.parse('https://creatoros-backend-rb5b.onrender.com/api/ai/scripts/$id'),
+         headers: ApiService.authHeaders,
+       );
        if (response.statusCode == 200) {
          _fetchScripts();
          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Script deleted.')));
