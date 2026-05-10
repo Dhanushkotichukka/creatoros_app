@@ -3,20 +3,28 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
 
 class AuthService {
   static const String _tokenKey = 'jwt_token';
-  
+
+  // Mobile-only GoogleSignIn (not used on web)
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    serverClientId: '376637535192-ira5lufv3fe6se6ga4k2d5jjcl3o564h.apps.googleusercontent.com', // Web Client ID for backend validation
+    serverClientId: '376637535192-ira5lufv3fe6se6ga4k2d5jjcl3o564h.apps.googleusercontent.com',
   );
 
   /// Get stored JWT token
   static Future<String?> getStoredToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_tokenKey);
+  }
+
+  /// Store a JWT token (called from web redirect callback handler)
+  static Future<void> storeToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
   }
 
   /// Get headers for protected API calls
@@ -28,24 +36,28 @@ class AuthService {
     };
   }
 
-  /// Trigger Google Sign-In and authenticate with backend
+  /// Trigger Google Sign-In
+  /// - Web:    Opens backend redirect OAuth URL in same browser tab
+  /// - Mobile: Uses google_sign_in popup flow → sends idToken to backend
   Future<Map<String, dynamic>> signInWithGoogle() async {
-    try {
-      // Trigger Google Sign-In on device
-      final GoogleSignInAccount? account = await _googleSignIn.signIn();
-      if (account == null) {
-        throw Exception('Google Sign-In aborted');
-      }
+    if (kIsWeb) {
+      // ── WEB: Redirect to backend OAuth flow ─────────────────────────────
+      // The backend will redirect back to this app with ?auth_token=JWT
+      final oauthUrl = Uri.parse('${ApiService.baseUrl}/auth/google-signin/web');
+      await launchUrl(oauthUrl, mode: LaunchMode.platformDefault);
+      // Return empty — AuthProvider will handle token from URL on next load
+      throw Exception('web_redirect_initiated');
+    }
 
-      // Get auth details (ID token)
+    // ── MOBILE: Traditional idToken flow ────────────────────────────────
+    try {
+      final GoogleSignInAccount? account = await _googleSignIn.signIn();
+      if (account == null) throw Exception('Google Sign-In aborted');
+
       final GoogleSignInAuthentication auth = await account.authentication;
       final String? idToken = auth.idToken;
+      if (idToken == null) throw Exception('Failed to get ID token from Google');
 
-      if (idToken == null) {
-        throw Exception('Failed to get ID token from Google');
-      }
-
-      // Send ID token to backend
       final response = await http.post(
         Uri.parse('${ApiService.baseUrl}/auth/google-signin/google'),
         headers: {'Content-Type': 'application/json'},
@@ -56,11 +68,8 @@ class AuthService {
         final data = jsonDecode(response.body);
         final token = data['token'];
         final user = data['user'];
-
-        // Store JWT
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString(_tokenKey, token);
-
         return user;
       } else {
         throw Exception('Backend authentication failed: ${response.body}');
@@ -71,19 +80,33 @@ class AuthService {
     }
   }
 
+  /// Called after web redirect returns — token is in URL params.
+  /// Fetches user profile from backend using the stored token.
+  Future<Map<String, dynamic>?> handleWebRedirectToken(String token) async {
+    try {
+      await storeToken(token);
+      final response = await http.get(
+        Uri.parse('${ApiService.baseUrl}/auth/google-signin/me'),
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body)['user'];
+      }
+    } catch (e) {
+      debugPrint('handleWebRedirectToken error: $e');
+    }
+    return null;
+  }
+
   /// Clear session and logout
   Future<void> logout() async {
     try {
-      await _googleSignIn.signOut();
-      
-      // Notify backend (optional since JWT is stateless)
+      if (!kIsWeb) await _googleSignIn.signOut();
       final headers = await getAuthHeaders();
       await http.post(
         Uri.parse('${ApiService.baseUrl}/auth/google-signin/logout'),
         headers: headers,
-      ).catchError((_) => null); // Ignore error on logout
-
-      // Clear local JWT
+      ).catchError((_) => null);
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_tokenKey);
     } catch (e) {
@@ -96,17 +119,14 @@ class AuthService {
     try {
       final token = await getStoredToken();
       if (token == null) return null;
-
       final headers = await getAuthHeaders();
       final response = await http.get(
         Uri.parse('${ApiService.baseUrl}/auth/google-signin/me'),
         headers: headers,
       );
-
       if (response.statusCode == 200) {
         return jsonDecode(response.body)['user'];
       } else {
-        // Token might be expired, clear it
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_tokenKey);
         return null;
@@ -133,7 +153,6 @@ class AuthService {
         if (bio != null) 'bio': bio,
       }),
     );
-
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['user'];
     } else {

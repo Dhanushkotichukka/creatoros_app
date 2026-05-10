@@ -1,10 +1,14 @@
 const express = require('express');
 const router = express.Router();
-const { googleAuth, getMe, updateProfile, logout } = require('../controllers/authController');
+const { googleAuth, getMe, updateProfile, logout, webGoogleAuth, webGoogleCallback } = require('../controllers/authController');
 const authenticateToken = require('../middleware/authMiddleware');
 
-// Public — Flutter sends Google idToken here
+// Public — Flutter mobile sends Google idToken here
 router.post('/google', googleAuth);
+
+// Public — Web redirect flow: browser → Google → callback → Flutter web
+router.get('/web', webGoogleAuth);
+router.get('/web/callback', webGoogleCallback);
 
 // Protected — returns current user profile
 router.get('/me', authenticateToken, getMe);

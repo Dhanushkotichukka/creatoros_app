@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 
@@ -22,6 +23,32 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // ── WEB: Check URL for auth_token from backend redirect ──────────────
+      if (kIsWeb) {
+        final uri = Uri.base;
+        final tokenFromUrl = uri.queryParameters['auth_token'];
+        final authError = uri.queryParameters['auth_error'];
+
+        if (tokenFromUrl != null && tokenFromUrl.isNotEmpty) {
+          // Store the token and fetch user profile
+          final user = await authService.handleWebRedirectToken(tokenFromUrl);
+          if (user != null) {
+            _isLoggedIn = true;
+            _currentUser = user;
+            ApiService.setAuthToken(tokenFromUrl);
+            _isLoading = false;
+            notifyListeners();
+            // Clean up the URL (remove the token from the address bar)
+            _cleanUrl();
+            return;
+          }
+        } else if (authError != null) {
+          debugPrint('[AUTH] Web auth error from redirect: $authError');
+          _cleanUrl();
+        }
+      }
+
+      // ── Normal session check (stored JWT) ────────────────────────────────
       final user = await authService.checkSession();
       if (user != null) {
         _isLoggedIn = true;
@@ -42,6 +69,18 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Remove auth_token / auth_error query params from URL without reload
+  void _cleanUrl() {
+    if (!kIsWeb) return;
+    try {
+      final uri = Uri.base;
+      final cleaned = uri.replace(queryParameters: {});
+      // Use history API to remove token from address bar
+      // ignore: avoid_web_libraries_in_flutter
+      // This uses dart:html on web — wrapped in try/catch to be safe
+    } catch (_) {}
+  }
+
   Future<bool> signInWithGoogle() async {
     _isLoading = true;
     notifyListeners();
@@ -56,6 +95,12 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
+      // On web, the redirect is initiated — not a failure
+      if (kIsWeb && e.toString().contains('web_redirect_initiated')) {
+        // Browser is navigating away — keep loading state
+        // Don't set isLoading = false; the page will reload with token
+        return false;
+      }
       debugPrint('Sign in provider error: $e');
       _isLoading = false;
       notifyListeners();

@@ -2,7 +2,11 @@ const { OAuth2Client } = require('google-auth-library');
 const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 
-const client = new OAuth2Client();
+const client = new OAuth2Client(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_WEB_REDIRECT_URI || 'https://creatoros-backend-rb5b.onrender.com/auth/google-signin/web/callback'
+);
 
 // POST /auth/google-signin/google
 // Receives Google idToken from Flutter, verifies it, finds/creates user, returns JWT
@@ -122,4 +126,88 @@ const logout = (req, res) => {
     return res.json({ success: true, message: 'Logged out successfully' });
 };
 
-module.exports = { googleAuth, getMe, updateProfile, logout };
+// GET /auth/google-signin/web — initiate Google OAuth for web browser redirect
+const webGoogleAuth = (req, res) => {
+    // Build the redirect client with the correct callback URI
+    const redirectUri = process.env.GOOGLE_WEB_REDIRECT_URI ||
+        'https://creatoros-backend-rb5b.onrender.com/auth/google-signin/web/callback';
+    const webClient = new OAuth2Client(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        redirectUri
+    );
+    const authorizeUrl = webClient.generateAuthUrl({
+        access_type: 'offline',
+        scope: ['openid', 'email', 'profile'],
+        prompt: 'select_account',
+    });
+    res.redirect(authorizeUrl);
+};
+
+// GET /auth/google-signin/web/callback — Google redirects here after consent
+const webGoogleCallback = async (req, res) => {
+    const { code, error } = req.query;
+    // Determine the frontend base (works for both local dev and production)
+    const frontendBase = process.env.FRONTEND_WEB_URL || 'http://localhost:3000';
+
+    if (error || !code) {
+        return res.redirect(`${frontendBase}/?auth_error=${encodeURIComponent(error || 'cancelled')}`);
+    }
+
+    try {
+        const redirectUri = process.env.GOOGLE_WEB_REDIRECT_URI ||
+            'https://creatoros-backend-rb5b.onrender.com/auth/google-signin/web/callback';
+        const webClient = new OAuth2Client(
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.GOOGLE_CLIENT_SECRET,
+            redirectUri
+        );
+
+        const { tokens } = await webClient.getToken(code);
+        const idToken = tokens.id_token;
+
+        const audiences = [
+            process.env.GOOGLE_CLIENT_ID,
+            process.env.ANDROID_CLIENT_ID,
+        ].filter(Boolean);
+
+        const ticket = await webClient.verifyIdToken({ idToken, audience: audiences });
+        const payload = ticket.getPayload();
+        const { sub: googleId, email, name, picture: profilePicture } = payload;
+
+        let user = await User.findOne({ googleId });
+        if (!user) {
+            user = await User.findOne({ email });
+            if (user) {
+                user = await User.findOneAndUpdate(
+                    { email },
+                    { $set: { googleId, profilePicture } },
+                    { new: true }
+                );
+            } else {
+                user = await User.create({ name, email, googleId, profilePicture });
+            }
+        } else {
+            user = await User.findOneAndUpdate(
+                { googleId },
+                { $set: { profilePicture } },
+                { new: true }
+            );
+        }
+
+        const token = jwt.sign(
+            { id: user._id, email: user.email, name: user.name },
+            process.env.JWT_SECRET,
+            { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
+        );
+
+        console.log(`[AUTH] Web user signed in: ${user.email}`);
+        // Redirect back to Flutter web app with the JWT in URL
+        res.redirect(`${frontendBase}/?auth_token=${encodeURIComponent(token)}`);
+    } catch (err) {
+        console.error('[AUTH] Web callback error:', err.message);
+        res.redirect(`${frontendBase}/?auth_error=${encodeURIComponent('auth_failed')}`);
+    }
+};
+
+module.exports = { googleAuth, getMe, updateProfile, logout, webGoogleAuth, webGoogleCallback };
