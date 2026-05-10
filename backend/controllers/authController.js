@@ -39,17 +39,22 @@ const googleAuth = async (req, res) => {
             user = await User.findOne({ email });
             if (user) {
                 // Link Google ID to existing account
-                user.googleId = googleId;
-                user.profilePicture = profilePicture;
-                await user.save();
+                user = await User.findOneAndUpdate(
+                    { email },
+                    { $set: { googleId, profilePicture } },
+                    { new: true }
+                );
             } else {
                 // Brand new user
                 user = await User.create({ name, email, googleId, profilePicture });
             }
         } else {
             // Refresh profile picture on every login
-            user.profilePicture = profilePicture;
-            await user.save();
+            user = await User.findOneAndUpdate(
+                { googleId },
+                { $set: { profilePicture } },
+                { new: true }
+            );
         }
 
         // Sign JWT with user identity

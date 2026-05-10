@@ -16,6 +16,11 @@ const userSchema = new mongoose.Schema({
     unique: true,
     sparse: true, // Allows multiple null googleIds
   },
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true,
+  },
   profilePicture: {
     type: String,
   },
