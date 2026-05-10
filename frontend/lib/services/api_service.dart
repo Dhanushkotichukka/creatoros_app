@@ -203,7 +203,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getVideoAnalytics(String videoId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/api/analytics/video/$videoId'),
-      headers: _getAuthHeaders,
+      headers: getAuthHeaders,
     );
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -215,7 +215,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getVideoComments(String videoId, {String? pageToken}) async {
     String url = '$baseUrl/api/analytics/video/$videoId/comments';
     if (pageToken != null) url += '?pageToken=$pageToken';
-    final response = await http.get(Uri.parse(url), headers: _getAuthHeaders);
+    final response = await http.get(Uri.parse(url), headers: getAuthHeaders);
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -226,7 +226,7 @@ class ApiService {
   static Future<bool> postVideoReply(String videoId, String commentId, String text) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/analytics/video/$videoId/reply'),
-      headers: _authHeaders,
+      headers: authHeaders,
       body: jsonEncode({'commentId': commentId, 'text': text}),
     );
     if (response.statusCode == 200) {
@@ -248,7 +248,7 @@ class ApiService {
       'q': query, 'type': type,
       'page': page.toString(), 'perPage': perPage.toString(),
     });
-    final response = await http.get(uri, headers: _getAuthHeaders);
+    final response = await http.get(uri, headers: getAuthHeaders);
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -264,7 +264,7 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/media/import-from-url'),
-      headers: _authHeaders,
+      headers: authHeaders,
       body: jsonEncode({'url': url, 'fileName': fileName, 'destination': destination, 'mimeType': mimeType}),
     );
     if (response.statusCode == 200) {
@@ -282,7 +282,7 @@ class ApiService {
   static Future<List<dynamic>> getStorageFiles() async {
     final response = await http.get(
       Uri.parse('$baseUrl/api/media/list'),
-      headers: _getAuthHeaders,
+      headers: getAuthHeaders,
     );
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['items'];
@@ -309,7 +309,7 @@ class ApiService {
   static Future<void> deleteStorageFile(String fileName, String storage) async {
     final response = await http.delete(
       Uri.parse('$baseUrl/api/media/delete'),
-      headers: _authHeaders,
+      headers: authHeaders,
       body: jsonEncode({'fileName': fileName, 'storage': storage}),
     );
     if (response.statusCode != 200) {
@@ -320,7 +320,7 @@ class ApiService {
   static Future<String> getStorageDownloadUrl(String fileName, String storage) async {
     final uri = Uri.parse('$baseUrl/api/media/download-url')
         .replace(queryParameters: {'fileName': fileName, 'storage': storage});
-    final response = await http.get(uri, headers: _getAuthHeaders);
+    final response = await http.get(uri, headers: getAuthHeaders);
     if (response.statusCode == 200) {
       return jsonDecode(response.body)['url'];
     } else {
@@ -333,7 +333,7 @@ class ApiService {
   static Future<List<dynamic>> getPlatformStatus() async {
     final response = await http.get(
       Uri.parse('$baseUrl/api/analytics/platforms/status'),
-      headers: _getAuthHeaders,
+      headers: getAuthHeaders,
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -362,7 +362,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getPlatformStatuses() async {
     final response = await http.get(
       Uri.parse('$baseUrl/api/analytics/platforms/status'),
-      headers: _getAuthHeaders,
+      headers: getAuthHeaders,
     );
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
@@ -374,7 +374,7 @@ class ApiService {
   static Future<void> disconnectPlatform(String platform) async {
     final response = await http.post(
       Uri.parse('$baseUrl/auth/${platform.toLowerCase()}/disconnect'),
-      headers: _authHeaders,
+      headers: authHeaders,
     );
     if (response.statusCode != 200) {
       throw Exception('Failed to disconnect $platform');
@@ -396,7 +396,7 @@ class ApiService {
 
       final response = await http.post(
         Uri.parse('$baseUrl/api/publish'),
-        headers: _authHeaders,
+        headers: authHeaders,
         body: jsonEncode({
           'title': post.title,
           'scheduledTime': post.scheduledTime?.toIso8601String() ?? '',

@@ -24,6 +24,7 @@
     "google-trends-api": "^4.9.2",
     "googleapis": "^171.4.0",
     "groq-sdk": "^1.1.1",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.6.2",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
