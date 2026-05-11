@@ -7,12 +7,15 @@ const createTransporter = () => {
   }
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // SSL
+    port: 587,
+    secure: false, // true for 465, false for other ports
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
+    connectionTimeout: 15000, // 15 seconds
+    greetingTimeout: 15000,
+    socketTimeout: 15000,
   });
 };
 
@@ -21,10 +24,6 @@ const createTransporter = () => {
  */
 const sendVerificationOTP = async (email, name, otp) => {
   const transporter = createTransporter();
-
-  // Verify connection before sending
-  await transporter.verify();
-  console.log(`[EMAIL] SMTP connection verified for ${email}`);
 
   const mailOptions = {
     from: `"CreatorOS 🚀" <creatoros.app.connect@gmail.com>`,
@@ -58,9 +57,6 @@ const sendVerificationOTP = async (email, name, otp) => {
  */
 const sendPasswordResetOTP = async (email, name, otp) => {
   const transporter = createTransporter();
-
-  await transporter.verify();
-  console.log(`[EMAIL] SMTP connection verified for ${email}`);
 
   const mailOptions = {
     from: `"CreatorOS 🚀" <creatoros.app.connect@gmail.com>`,
