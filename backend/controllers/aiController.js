@@ -125,7 +125,7 @@ exports.getTrendingTopics = async (req, res) => {
 
         const prompt = `You are an expert YouTube strategist. Based on these recent videos from the channel: ${JSON.stringify(recentTitles)}, and the niche "${category}", generate 5 highly specific, viral video content ideas tailored to this channel's style. Return JSON: { "topics": [{"title":"...","trendScore":95,"whyTrending":"...","hook":"..."}] }`;
         const raw = await safePrompt({ prompt, json: true });
-        res.json(JSON.parse(raw));
+        res.json(raw);
     } catch (e) { res.status(500).json({ error: 'Failed to generate topics' }); }
 };
 
@@ -166,7 +166,7 @@ exports.generateScript = async (req, res) => {
         const prompt = `You are a world-class viral script writer. Topic: "${topic}". Context:\n${context}\nPlatform: ${platform}. Style: ${styleMode}. Type: ${contentType}. Length: ${scriptLength}. Language: ${language || 'English'}.\nIf transcript says "NOT AVAILABLE", create a brilliant original script about the topic.${teluguInstruction}\nReturn JSON: { "hook": "...", "mainContent": ["point1","point2","point3"], "callToAction": "...", "hashtags": ["#tag1","#tag2"], "estimatedDuration": "45 seconds", "aiRating": 8.5, "provenance": "Strategy reasoning here"${isMultilingual ? ', "teluguVersion": { "hook": "...", "mainContent": ["..."], "callToAction": "..." }' : ''} }`;
 
         const raw = await safePrompt({ prompt, json: true });
-        res.json({ scriptPackage: JSON.parse(raw) });
+        res.json({ scriptPackage: raw });
     } catch (e) { res.status(500).json({ error: 'Script generation failed.' }); }
 };
 
@@ -222,9 +222,7 @@ exports.analyzeChannelInsights = async (req, res) => {
         }
 
         const prompt = `You are an elite YouTube strategist AI. Analyze these REAL videos from a YouTube channel: ${JSON.stringify(videos.slice(0, 10).map(v => ({ title: v.title })))}.\n\nExtract the precise niche, audience type, and generate 5 highly specific viral content opportunities that fit this channel's existing style.\nReturn JSON: {\n  "niche": { "primary": "...", "secondary": "...", "confidence": 95, "keywords": ["k1","k2","k3"] },\n  "smartTopics": [\n    { "title": "...", "trendScore": 95, "hook": "...", "whyTrending": "...", "sourceRef": "Based on..." }\n  ]\n}`;
-
-        const raw = await safePrompt({ prompt, json: true });
-        const analysis = JSON.parse(raw);
+        const analysis = await safePrompt({ prompt, json: true });
 
         // Step 4: External trends from news (no quota needed)
         const niche = analysis.niche?.primary || 'Film Reviews';

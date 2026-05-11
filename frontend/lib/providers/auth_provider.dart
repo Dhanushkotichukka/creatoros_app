@@ -61,10 +61,19 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
 
         // Silently fetch fresh profile in background
-        authService.checkSession().then((freshUser) {
+        authService.checkSession().then((freshUser) async {
           if (freshUser != null) {
             _currentUser = freshUser;
             notifyListeners();
+          } else {
+            // Check if backend rejected token (401/403) and deleted it
+            final currentToken = await AuthService.getStoredToken();
+            if (currentToken == null) {
+              _isLoggedIn = false;
+              _currentUser = null;
+              ApiService.setAuthToken(null);
+              notifyListeners();
+            }
           }
         });
         return; // Don't call notifyListeners again

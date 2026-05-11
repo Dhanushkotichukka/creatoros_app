@@ -2,4 +2,4 @@
 
 Here is the system architecture diagram for CreatorOS:
 
-![Architecture Diagram](architecture.jpg)
+![Architecture Diagram](assets/architecture.jpg)

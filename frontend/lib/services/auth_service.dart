@@ -188,9 +188,12 @@ class AuthService {
       );
       if (response.statusCode == 200) {
         return jsonDecode(response.body)['user'];
-      } else {
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_tokenKey);
+        return null;
+      } else {
+        // Server error (500) or not found (404), do NOT delete valid token
         return null;
       }
     } catch (e) {
