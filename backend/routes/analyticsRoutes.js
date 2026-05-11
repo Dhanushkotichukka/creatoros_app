@@ -338,8 +338,8 @@ router.get('/overview', async (req, res) => {
             channelAvatar: req.platformContext.linkedinAvatar
         };
 
-        const liConnections = 1450;
-        const liReach = 12500;
+        const liConnections = 1450; // demoAnalyticsData
+        const liReach = 12500; // demoAnalyticsData
         totalViewsNum += liReach;
         totalSubsNum += liConnections;
 
@@ -694,8 +694,8 @@ router.get('/:platform', async (req, res) => {
         }
     } else if (platform.toLowerCase() === 'linkedin' && req.platformContext.linkedinToken) {
         try {
-            const connections = 1450;
-            const impressions = 12500;
+            const connections = 1450; // demoAnalyticsData
+            const impressions = 12500; // demoAnalyticsData
             const engRate = '4.2';
 
             platformData = {

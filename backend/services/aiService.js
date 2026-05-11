@@ -928,6 +928,8 @@ const executeWithFailover = async ({
 
 // ─── AI LAB EXPORTS ──────────────────────────────────────────────────────────
 
+exports.executeWithFailover = executeWithFailover;
+
 exports.generateScript = async (topic) => {
     return executeWithFailover({
         key: `script_${topic}`,

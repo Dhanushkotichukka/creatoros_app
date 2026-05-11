@@ -483,8 +483,8 @@ async function pollLinkedInStatus(assetUrn, token, isVid) {
 }
 
 exports.getLinkedInAnalytics = async (req, res) => {
-    const DEFAULT_USER_ID = 'default-user-id';
-    const tokenDoc = await Token.findOne({ userId: DEFAULT_USER_ID, platform: 'linkedin' });
+    const userId = req.user?.id || 'default-user-id';
+    const tokenDoc = await Token.findOne({ userId: userId, platform: 'linkedin' });
     const authorUrn = req.query.organizationUrn || tokenDoc?.platformAccountId;
     const accessToken = req.headers.authorization?.split(' ')[1] || tokenDoc?.accessToken;
 

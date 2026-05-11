@@ -14,41 +14,18 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 // ─── KNOWN CHANNEL ───────────────────────────────────────────────────
 const FALLBACK_CHANNEL_ID = 'UCBJycsmduvYEL83R_U4JriQ'; // MKBHD (Reliable fallback for RSS)
 
+const aiService = require('../services/aiService');
+
 // ─── AI RESILIENCE ───────────────────────────────────────────────────
 const safePrompt = async ({ prompt, json = true, temperature = 0.7 }) => {
-    // Try Groq 70B first
-    try {
-        const completion = await groq.chat.completions.create({
-            messages: [{ role: 'user', content: prompt }],
-            model: 'llama-3.3-70b-versatile',
-            response_format: json ? { type: 'json_object' } : undefined,
-            temperature
-        });
-        return completion.choices[0].message.content;
-    } catch (e) {
-        console.warn('[AI] Groq 70B hit limit, trying 8B...');
-    }
-
-    // Try Groq 8B
-    try {
-        const completion = await groq.chat.completions.create({
-            messages: [{ role: 'user', content: prompt }],
-            model: 'llama-3.1-8b-instant',
-            response_format: json ? { type: 'json_object' } : undefined,
-            temperature
-        });
-        return completion.choices[0].message.content;
-    } catch (e) {
-        console.warn('[AI] Groq 8B hit limit, using Gemini fallback...');
-    }
-
-    // Final fallback: Gemini
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent(prompt + (json ? "\nReturn ONLY valid JSON, no markdown." : ""));
-    const response = await result.response;
-    let text = response.text();
-    if (json) text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-    return text;
+    return await aiService.executeWithFailover({
+        system: "You are an AI assistant. Follow the instructions provided precisely.",
+        user: prompt,
+        primaryEngine: 'groq',
+        model: 'llama-3.3-70b-versatile',
+        timeout: 15000,
+        isJson: json
+    });
 };
 
 const formatViews = (v) => {
