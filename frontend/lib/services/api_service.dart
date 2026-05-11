@@ -7,10 +7,6 @@ import '../models/multi_post/post_model.dart';
 class ApiService {
   // Use deployed Render URL for all platforms
   static String get baseUrl {
-    // In debug mode, use local backend; in release, use deployed Render backend
-    if (kDebugMode) {
-      return 'http://localhost:3000';
-    }
     return 'https://creatoros-backend-rb5b.onrender.com';
   }
   static bool hasConnected = false;
@@ -237,6 +233,18 @@ class ApiService {
       return true;
     } else {
       throw Exception('Failed to post reply');
+    }
+  }
+
+  static Future<Map<String, dynamic>> getCreatorScore() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/analytics/creator-score'),
+      headers: getAuthHeaders,
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception('Failed to fetch creator score');
     }
   }
 

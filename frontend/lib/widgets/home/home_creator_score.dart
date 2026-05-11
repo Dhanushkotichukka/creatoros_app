@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../../utils/app_colors.dart';
+import '../../services/api_service.dart';
 
 class HomeCreatorScore extends StatefulWidget {
   const HomeCreatorScore({super.key});
@@ -12,6 +13,9 @@ class _HomeCreatorScoreState extends State<HomeCreatorScore>
     with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
   late Animation<double> _anim;
+  
+  Map<String, dynamic>? _scoreData;
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -19,21 +23,68 @@ class _HomeCreatorScoreState extends State<HomeCreatorScore>
     _ctrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 1200));
     _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic);
-    _ctrl.forward();
+    _fetchScore();
+  }
+  
+  Future<void> _fetchScore() async {
+    try {
+      final data = await ApiService.getCreatorScore();
+      if (mounted) {
+        setState(() {
+          _scoreData = data;
+          _isLoading = false;
+        });
+        _ctrl.forward();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _scoreData = {
+            'score': 82,
+            'metrics': [
+              {'label': 'Consistency', 'value': 90, 'color': '0xFF69F0AE'},
+              {'label': 'Engagement', 'value': 75, 'color': '0xFFFFAB40'},
+              {'label': 'Frequency', 'value': 85, 'color': '0xFF448AFF'},
+            ]
+          };
+          _isLoading = false;
+        });
+        _ctrl.forward();
+      }
+    }
   }
 
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }
 
+  Color _parseColor(String colorStr) {
+    if (colorStr.startsWith('0x')) {
+      return Color(int.parse(colorStr));
+    }
+    return Colors.blueAccent;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = Theme.of(context).extension<AppColors>()!;
-    const score = 82;
-    const metrics = [
-      _ScoreMetric('Consistency', 90, Colors.greenAccent),
-      _ScoreMetric('Engagement', 75, Colors.orangeAccent),
-      _ScoreMetric('Frequency', 85, Colors.blueAccent),
-    ];
+    
+    if (_isLoading) {
+      return Container(
+        height: 250,
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: c.border),
+        ),
+        child: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final score = _scoreData!['score'] as int;
+    final metricsRaw = _scoreData!['metrics'] as List;
+    final metrics = metricsRaw.map((m) => _ScoreMetric(
+      m['label'], m['value'], _parseColor(m['color'])
+    )).toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -103,7 +154,7 @@ class _HomeCreatorScoreState extends State<HomeCreatorScore>
               color: Colors.greenAccent.withOpacity(0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text("🎯  Great Job! You're doing better than 82% of creators.",
+            child: Text("🎯  Great Job! You're doing better than $score% of creators.",
                 style: TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.w600)),
           ),
           const SizedBox(height: 12),

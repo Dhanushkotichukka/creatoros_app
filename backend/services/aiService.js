@@ -13,6 +13,7 @@
 const Groq = require('groq-sdk');
 const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const CreatorMemory = require('../models/CreatorMemory');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
@@ -27,70 +28,52 @@ const MODELS = {
 };
 
 // ─── CREATOR MEMORY STORE (FIX 2) ────────────────────────────────────────────
-// In production, replace with DB (Postgres / Redis / Firestore).
-// This in-memory store persists per server instance.
-const creatorMemoryStore = new Map();
 
-/**
- * Load a creator's memory profile.
- * Returns: niche, style, past hook types that worked, audience age, best time, etc.
- */
-function loadCreatorMemory(channelId) {
-    return creatorMemoryStore.get(channelId) || {
-        channelId,
-        niche: null,
-        contentStyle: null,               // 'educational' | 'entertainment' | 'vlog' | 'review'
-        audienceAge: null,
-        bestPostTime: null,
-        winningHookType: null,
-        avgRetention: null,
-        pastInsightSummaries: [],         // last 5 narrative summaries stored
-        pastVideoPerformance: [],         // { title, retention, hookType, postedAt }
-        improvementAreas: [],             // recurring weak points flagged by AI
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-    };
+async function loadCreatorMemory(channelId) {
+    if (!channelId) return {};
+    try {
+        let mem = await CreatorMemory.findOne({ channelId });
+        if (!mem) {
+            mem = await CreatorMemory.create({ channelId });
+        }
+        return mem;
+    } catch (e) {
+        console.error('[MemoryLoadError]', e);
+        return { channelId };
+    }
 }
 
-/**
- * Save updated creator memory back to store.
- */
-function saveCreatorMemory(channelId, updates) {
-    const existing = loadCreatorMemory(channelId);
-    creatorMemoryStore.set(channelId, {
-        ...existing,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-    });
+async function saveCreatorMemory(channelId, updates) {
+    if (!channelId) return;
+    try {
+        await CreatorMemory.findOneAndUpdate({ channelId }, { $set: updates }, { upsert: true });
+    } catch (e) {
+        console.error('[MemorySaveError]', e);
+    }
 }
 
-/**
- * After analytics runs, update creator memory with what we learned.
- * This is the FEEDBACK LOOP (FIX 1 + FIX 2).
- */
-function updateCreatorMemoryFromAnalytics(channelId, summary, narrative) {
+async function updateCreatorMemoryFromAnalytics(channelId, summary, narrative) {
+    if (!channelId) return;
     const m = summary.metrics || {};
-    const existing = loadCreatorMemory(channelId);
+    const existing = await loadCreatorMemory(channelId);
 
-    // Keep last 5 insight summaries for context
     const pastInsightSummaries = [
         ...(existing.pastInsightSummaries || []).slice(-4),
         {
-            date: new Date().toISOString(),
+            date: new Date(),
             winningPattern: narrative.winning_pattern?.title,
             topRetention: m.top_videos_avg_retention,
             hookScore: m.hook_score,
-            actionItems: narrative.summary,
+            actionItems: narrative.action_plan?.summary || '',
         }
     ];
 
-    // Accumulate improvement areas to spot recurring problems
     const improvementAreas = [
         ...(existing.improvementAreas || []).slice(-9),
         ...(narrative.avoid || [])
     ];
 
-    saveCreatorMemory(channelId, {
+    await saveCreatorMemory(channelId, {
         niche: summary.niche || existing.niche,
         contentStyle: summary.formatWinner || existing.contentStyle,
         audienceAge: summary.topAgeGroup || existing.audienceAge,
@@ -103,92 +86,101 @@ function updateCreatorMemoryFromAnalytics(channelId, summary, narrative) {
 }
 
 // ─── FEEDBACK LOOP STORE (FIX 1) ─────────────────────────────────────────────
-// Track: AI gave suggestion → video was uploaded → real result came in.
-const feedbackStore = new Map();
 
-/**
- * Record a new AI suggestion so we can compare against real results later.
- */
-function recordSuggestion(channelId, suggestionId, suggestionData) {
-    const channelFeedback = feedbackStore.get(channelId) || [];
-    channelFeedback.push({
-        suggestionId,
-        channelId,
-        suggestion: suggestionData,
-        predictedOutcome: suggestionData.expected_outcome,
-        actualRetention: null,      // filled in later via recordActualResult()
-        actualViews: null,
-        wasHelpful: null,
-        recordedAt: new Date().toISOString(),
-        resolvedAt: null,
-    });
-    feedbackStore.set(channelId, channelFeedback.slice(-20)); // keep last 20
-}
-
-/**
- * Record the actual outcome after a video goes live.
- * Call this from your video performance webhook / analytics sync.
- */
-function recordActualResult(channelId, suggestionId, { actualRetention, actualViews, wasHelpful }) {
-    const channelFeedback = feedbackStore.get(channelId) || [];
-    const idx = channelFeedback.findIndex(f => f.suggestionId === suggestionId);
-    if (idx !== -1) {
-        channelFeedback[idx] = {
-            ...channelFeedback[idx],
-            actualRetention,
-            actualViews,
-            wasHelpful,
-            resolvedAt: new Date().toISOString(),
-        };
-        feedbackStore.set(channelId, channelFeedback);
+async function recordSuggestion(channelId, suggestionId, suggestionData) {
+    if (!channelId) return;
+    try {
+        const doc = await loadCreatorMemory(channelId);
+        doc.suggestions = doc.suggestions || [];
+        doc.suggestions.push({
+            suggestionId,
+            channelId,
+            suggestion: suggestionData,
+            predictedOutcome: suggestionData.expected_outcome,
+            actualRetention: null,
+            actualViews: null,
+            wasHelpful: null,
+            recordedAt: new Date(),
+            resolvedAt: null,
+        });
+        if (doc.suggestions.length > 20) {
+            doc.suggestions = doc.suggestions.slice(-20);
+        }
+        await doc.save();
+    } catch (e) {
+        console.error('[RecordSuggestionError]', e);
     }
 }
 
-/**
- * Build a feedback context string to inject into prompts.
- * This closes the loop: AI sees what worked and what didn't.
- */
-function buildFeedbackContext(channelId) {
-    const channelFeedback = feedbackStore.get(channelId) || [];
-    const resolved = channelFeedback.filter(f => f.actualRetention !== null);
-    if (!resolved.length) return '';
-
-    const lines = resolved.slice(-5).map(f =>
-        `• Suggested: "${f.suggestion?.content_idea || 'hook rewrite'}" → Predicted: ${f.predictedOutcome} → Actual retention: ${f.actualRetention}%`
-    );
-    return `\nPAST SUGGESTION ACCURACY (use to calibrate predictions):\n${lines.join('\n')}\n`;
+async function recordActualResult(channelId, suggestionId, { actualRetention, actualViews, wasHelpful }) {
+    if (!channelId) return;
+    try {
+        await CreatorMemory.findOneAndUpdate(
+            { channelId, 'suggestions.suggestionId': suggestionId },
+            {
+                $set: {
+                    'suggestions.$.actualRetention': actualRetention,
+                    'suggestions.$.actualViews': actualViews,
+                    'suggestions.$.wasHelpful': wasHelpful,
+                    'suggestions.$.resolvedAt': new Date()
+                }
+            }
+        );
+    } catch (e) {
+        console.error('[RecordActualResultError]', e);
+    }
 }
 
-// ─── HELPER: Build personalization context string ─────────────────────────────
-function buildPersonalizationContext(channelId) {
-    const mem = loadCreatorMemory(channelId);
-    if (!mem.niche && !mem.winningHookType) return '';
+async function buildFeedbackContext(channelId) {
+    if (!channelId) return '';
+    try {
+        const mem = await loadCreatorMemory(channelId);
+        const resolved = (mem.suggestions || []).filter(f => f.actualRetention !== null);
+        if (!resolved.length) return '';
 
-    const parts = [];
-    if (mem.niche) parts.push(`Niche: ${mem.niche}`);
-    if (mem.contentStyle) parts.push(`Content style: ${mem.contentStyle}`);
-    if (mem.winningHookType) parts.push(`Winning hook type historically: ${mem.winningHookType}`);
-    if (mem.avgRetention) parts.push(`Channel avg retention (historical): ${mem.avgRetention}%`);
-    if (mem.audienceAge) parts.push(`Primary audience age: ${mem.audienceAge}`);
-    if (mem.bestPostTime) parts.push(`Best post time: ${mem.bestPostTime}`);
-
-    const recurringWeaknesses = [...new Set(mem.improvementAreas)].slice(0, 3);
-    if (recurringWeaknesses.length) {
-        parts.push(`Recurring weaknesses to address: ${recurringWeaknesses.join('; ')}`);
+        const lines = resolved.slice(-5).map(f =>
+            `• Suggested: "${f.suggestion?.content_idea || 'hook rewrite'}" → Predicted: ${f.predictedOutcome} → Actual retention: ${f.actualRetention}%`
+        );
+        return `\nPAST SUGGESTION ACCURACY (use to calibrate predictions):\n${lines.join('\n')}\n`;
+    } catch (e) {
+        return '';
     }
+}
 
-    if (mem.pastInsightSummaries?.length) {
-        const last = mem.pastInsightSummaries[mem.pastInsightSummaries.length - 1];
-        parts.push(`Last analysis (${last.date?.split('T')[0]}): ${last.winningPattern}, top retention ${last.topRetention}%`);
+async function buildPersonalizationContext(channelId) {
+    if (!channelId) return '';
+    try {
+        const mem = await loadCreatorMemory(channelId);
+        if (!mem.niche && !mem.winningHookType) return '';
+
+        const parts = [];
+        if (mem.niche) parts.push(`Niche: ${mem.niche}`);
+        if (mem.contentStyle) parts.push(`Content style: ${mem.contentStyle}`);
+        if (mem.winningHookType) parts.push(`Winning hook type historically: ${mem.winningHookType}`);
+        if (mem.avgRetention) parts.push(`Channel avg retention (historical): ${mem.avgRetention}%`);
+        if (mem.audienceAge) parts.push(`Primary audience age: ${mem.audienceAge}`);
+        if (mem.bestPostTime) parts.push(`Best post time: ${mem.bestPostTime}`);
+
+        const recurringWeaknesses = [...new Set(mem.improvementAreas || [])].slice(0, 3);
+        if (recurringWeaknesses.length) {
+            parts.push(`Recurring weaknesses to address: ${recurringWeaknesses.join('; ')}`);
+        }
+
+        if (mem.pastInsightSummaries?.length) {
+            const last = mem.pastInsightSummaries[mem.pastInsightSummaries.length - 1];
+            parts.push(`Last analysis (${new Date(last.date).toISOString().split('T')[0]}): ${last.winningPattern}, top retention ${last.topRetention}%`);
+        }
+
+        return parts.length ? `\nCREATOR PROFILE (learned over time):\n${parts.join('\n')}\n` : '';
+    } catch (e) {
+        return '';
     }
-
-    return parts.length ? `\nCREATOR PROFILE (learned over time):\n${parts.join('\n')}\n` : '';
 }
 
 // ─── SCRIPT OUTLINE ──────────────────────────────────────────────────────────
 
 exports.generateScriptOutline = async (topic, channelId = null) => {
-    const personalContext = channelId ? buildPersonalizationContext(channelId) : '';
+    const personalContext = channelId ? await buildPersonalizationContext(channelId) : '';
     try {
         const completion = await groq.chat.completions.create({
             messages: [{
@@ -241,8 +233,8 @@ THUMBNAIL ANGLE
 // ─── AI CHAT ASSISTANT ────────────────────────────────────────────────────────
 
 exports.generateAIChat = async (message, context = '', channelId = null) => {
-    const personalContext = channelId ? buildPersonalizationContext(channelId) : '';
-    const feedbackCtx = channelId ? buildFeedbackContext(channelId) : '';
+    const personalContext = channelId ? await buildPersonalizationContext(channelId) : '';
+    const feedbackCtx = channelId ? await buildFeedbackContext(channelId) : '';
 
     const systemPrompt = `You are an elite YouTube growth strategist with deep expertise in retention psychology, the YouTube algorithm, hook writing, thumbnail strategy, and channel monetization. You are direct and specific — never vague. Every answer is tied to data or proven creator psychology.
 ${context ? `\nSession context: ${context}` : ''}${personalContext}${feedbackCtx}
@@ -268,7 +260,7 @@ When answering, prioritize insights specific to this creator's history over gene
 // ─── TREND ANALYSIS ───────────────────────────────────────────────────────────
 
 exports.generateTrendAnalysis = async (topics, channelId = null) => {
-    const personalContext = channelId ? buildPersonalizationContext(channelId) : '';
+    const personalContext = channelId ? await buildPersonalizationContext(channelId) : '';
     try {
         const completion = await groq.chat.completions.create({
             messages: [{
@@ -328,8 +320,8 @@ exports.analyzeChannelData = async (summary, channelId = null) => {
     const lowEx = summary.low_videos?.[0] || {};
 
     // Personalization + feedback context (FIX 1 + FIX 2)
-    const personalContext = channelId ? buildPersonalizationContext(channelId) : '';
-    const feedbackCtx = channelId ? buildFeedbackContext(channelId) : '';
+    const personalContext = channelId ? await buildPersonalizationContext(channelId) : '';
+    const feedbackCtx = channelId ? await buildFeedbackContext(channelId) : '';
 
     const fallback = buildFallback(summary, m, topEx, lowEx, perfGap, hasRealData);
 
@@ -411,8 +403,8 @@ CHANNEL SCORES (null = data unavailable — do NOT fabricate):
 
         // FIX 1+2: Update memory and store suggestion for feedback loop
         if (channelId) {
-            updateCreatorMemoryFromAnalytics(channelId, summary, result);
-            recordSuggestion(channelId, `analytics_${Date.now()}`, result.next_video_plan);
+            await updateCreatorMemoryFromAnalytics(channelId, summary, result);
+            await recordSuggestion(channelId, `analytics_${Date.now()}`, result.next_video_plan);
         }
 
         return result;
@@ -425,7 +417,7 @@ CHANNEL SCORES (null = data unavailable — do NOT fabricate):
 // ─── CAPTION GENERATOR ───────────────────────────────────────────────────────
 
 exports.generateCaption = async (topic, channelId = null) => {
-    const personalContext = channelId ? buildPersonalizationContext(channelId) : '';
+    const personalContext = channelId ? await buildPersonalizationContext(channelId) : '';
     try {
         const completion = await groq.chat.completions.create({
             messages: [{
@@ -459,7 +451,7 @@ Each caption opening line must be under 150 characters. Label each variation cle
 // ═══════════════════════════════════════════════════════════════════════════════
 
 exports.rewriteHook = async (originalHook, videoTopic, channelId = null) => {
-    const mem = channelId ? loadCreatorMemory(channelId) : {};
+    const mem = channelId ? await loadCreatorMemory(channelId) : {};
     const winningType = mem.winningHookType || 'Question';
 
     try {
@@ -510,8 +502,8 @@ Rules:
 // ═══════════════════════════════════════════════════════════════════════════════
 
 exports.predictViralPotential = async ({ title, hook, description, channelId = null }) => {
-    const mem = channelId ? loadCreatorMemory(channelId) : {};
-    const feedbackCtx = channelId ? buildFeedbackContext(channelId) : '';
+    const mem = channelId ? await loadCreatorMemory(channelId) : {};
+    const feedbackCtx = channelId ? await buildFeedbackContext(channelId) : '';
 
     try {
         const completion = await groq.chat.completions.create({
@@ -575,7 +567,7 @@ Analyze and return ONLY valid JSON:
 
         // Record suggestion for feedback loop
         if (channelId) {
-            recordSuggestion(channelId, `viral_${Date.now()}`, {
+            await recordSuggestion(channelId, `viral_${Date.now()}`, {
                 content_idea: title,
                 expected_outcome: `Viral score: ${result.viral_score}/100`,
             });
@@ -609,8 +601,8 @@ exports.fixMyLastVideo = async ({
     dropOffPoint,    // e.g. "42%" — where viewers left
     channelId = null,
 }) => {
-    const mem = channelId ? loadCreatorMemory(channelId) : {};
-    const feedbackCtx = channelId ? buildFeedbackContext(channelId) : '';
+    const mem = channelId ? await loadCreatorMemory(channelId) : {};
+    const feedbackCtx = channelId ? await buildFeedbackContext(channelId) : '';
 
     try {
         const completion = await groq.chat.completions.create({
@@ -681,8 +673,8 @@ Return ONLY valid JSON — no markdown, no explanation outside JSON:
 
         // Update creator memory with this lesson (FIX 2)
         if (channelId && result.lesson_for_next_video) {
-            const mem2 = loadCreatorMemory(channelId);
-            saveCreatorMemory(channelId, {
+            const mem2 = await loadCreatorMemory(channelId);
+            await saveCreatorMemory(channelId, {
                 improvementAreas: [
                     ...(mem2.improvementAreas || []).slice(-9),
                     result.lesson_for_next_video,

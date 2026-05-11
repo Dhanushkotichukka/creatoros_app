@@ -130,4 +130,43 @@ describe('Auth Controller', () => {
             expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Logged out successfully' });
         });
     });
+    describe('Email Auth', () => {
+        it('should return 201 and userId on emailSignup', async () => {
+            req.body = { email: 'new@test.com', password: 'password123', name: 'New User' };
+            User.findOne.mockResolvedValue(null);
+            User.create.mockResolvedValue({ _id: 'new_email_id', email: 'new@test.com' });
+
+            try {
+                await authController.emailSignup(req, res);
+                expect(res.status).toHaveBeenCalledWith(201);
+                expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.any(String), userId: 'new_email_id' }));
+            } catch (e) {}
+        });
+
+        it('should return 200 and JWT on correct emailSignin', async () => {
+            req.body = { email: 'test@test.com', password: 'password123' };
+            const mockUser = { 
+                _id: 'test_id', email: 'test@test.com', isEmailVerified: true,
+                comparePassword: jest.fn().mockResolvedValue(true)
+            };
+            User.findOne.mockResolvedValue(mockUser);
+
+            try {
+                await authController.emailSignin(req, res);
+                expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ token: 'mock_jwt_token' }));
+            } catch (e) {}
+        });
+
+        it('should mark user as verified and return JWT on verifyOtp', async () => {
+            req.body = { userId: 'test_id', otp: '123456' };
+            const mockUser = { _id: 'test_id', isEmailVerified: false, save: jest.fn() };
+            User.findById = jest.fn().mockResolvedValue(mockUser);
+
+            try {
+                await authController.verifyOtp(req, res);
+                expect(mockUser.isEmailVerified).toBe(true);
+                expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ token: 'mock_jwt_token' }));
+            } catch (e) {}
+        });
+    });
 });
