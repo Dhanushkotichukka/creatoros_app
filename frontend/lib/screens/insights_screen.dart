@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../utils/app_colors.dart';
 import '../services/api_service.dart';
+import '../services/history_service.dart';
 
 /// Premium AI Insights Screen.
 /// Shows insights with Confidence Levels, Why+Action format, Alerts, and History.
@@ -20,7 +21,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
   Map<String, dynamic>? _data;
   bool _isLoading = true;
   String? _errorMessage;
-  Map<String, dynamic>? _historicalData;
+  List<dynamic> _historicalData = [];
 
   @override
   void initState() {
@@ -30,30 +31,14 @@ class _InsightsScreenState extends State<InsightsScreen> {
   }
 
   Future<void> _loadHistory() async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = 'insight_history_${widget.platform ?? 'overview'}';
-    final historyStr = prefs.getString(key);
-    if (historyStr != null) {
-      try {
-        setState(() {
-          _historicalData = jsonDecode(historyStr);
-        });
-      } catch (e) {
-        // ignore
-      }
-    }
+    setState(() {
+      _historicalData = HistoryService.getInsightHistory(widget.platform ?? 'overview');
+    });
   }
 
   Future<void> _saveHistory(Map<String, dynamic> data) async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = 'insight_history_${widget.platform ?? 'overview'}';
-    
-    // Save minimal summary for history
-    final historyObj = {
-      'date': DateTime.now().toIso8601String(),
-      'summary': data['whatNext'] ?? [],
-    };
-    await prefs.setString(key, jsonEncode(historyObj));
+    await HistoryService.saveInsightHistory(widget.platform ?? 'overview', data);
+    _loadHistory();
   }
 
   Future<void> _fetchData({bool refresh = false}) async {
@@ -118,6 +103,78 @@ class _InsightsScreenState extends State<InsightsScreen> {
     return p[0].toUpperCase() + p.substring(1);
   }
 
+  void _showHistoryModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        final c = Theme.of(context).extension<AppColors>()!;
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: c.border)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('🕰️ History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: c.textPrimary)),
+                    TextButton(
+                      onPressed: () async {
+                        await HistoryService.clearInsightHistory(widget.platform ?? 'overview');
+                        setState(() => _historicalData = []);
+                        if (mounted) Navigator.pop(context);
+                      },
+                      child: const Text('Clear All', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: _historicalData.isEmpty
+                    ? Center(child: Text('No history available', style: TextStyle(color: c.textSecondary)))
+                    : ListView.builder(
+                        itemCount: _historicalData.length,
+                        itemBuilder: (context, index) {
+                          final item = _historicalData[index];
+                          final ts = _formatTime(item['timestamp']);
+                          return ListTile(
+                            leading: const Icon(Icons.analytics),
+                            title: Text('Insight Report', style: TextStyle(color: c.textPrimary)),
+                            subtitle: Text(ts, style: TextStyle(color: c.textSecondary)),
+                            trailing: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _data = item['data'];
+                                });
+                                Navigator.pop(context);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: c.primary.withOpacity(0.1),
+                                foregroundColor: c.primary,
+                                elevation: 0,
+                              ),
+                              child: const Text('Reopen'),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -144,6 +201,11 @@ class _InsightsScreenState extends State<InsightsScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: Icon(Icons.history, color: c.textSecondary, size: 22),
+            tooltip: 'History',
+            onPressed: _showHistoryModal,
+          ),
           if (_data != null)
             IconButton(
               icon: Icon(Icons.refresh, color: c.textSecondary, size: 20),
@@ -249,9 +311,6 @@ class _InsightsScreenState extends State<InsightsScreen> {
 
           // What to do next
           if (_data!['whatNext'] != null) _SummaryCard(summaryList: _data!['whatNext'] as List<dynamic>),
-
-          // History
-          if (_historicalData != null) _HistorySection(history: _historicalData!),
         ],
       ),
     );

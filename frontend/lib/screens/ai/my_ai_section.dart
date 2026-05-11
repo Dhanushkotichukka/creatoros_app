@@ -6,6 +6,7 @@ import '../../utils/app_colors.dart';
 import '../../widgets/video_card_widget.dart';
 import '../../widgets/transcript_modal.dart';
 import '../../services/auth_service.dart';
+import '../../services/history_service.dart';
 
 class MyAISection extends StatefulWidget {
   const MyAISection({super.key});
@@ -15,7 +16,7 @@ class MyAISection extends StatefulWidget {
 }
 
 class _MyAISectionState extends State<MyAISection>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   final TextEditingController _categoryController = TextEditingController();
   late TabController _tabController;
 
@@ -97,6 +98,8 @@ class _MyAISectionState extends State<MyAISection>
 
       if (_error == null && _videos.isEmpty && _topics.isEmpty) {
         _error = 'No data found for "$category". Try a different topic.';
+      } else if (_error == null) {
+        await HistoryService.saveMyAiHistory(category, _videos, _topics);
       }
     } catch (e) {
       _error = 'Network error. Please ensure the backend is running and you have an active internet connection.';
@@ -149,7 +152,11 @@ class _MyAISectionState extends State<MyAISection>
       v['videoId']?.toString() ?? v['url']?.toString() ?? v['title']?.toString() ?? '';
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final c = Theme.of(context).extension<AppColors>()!;
 
     return Column(
@@ -236,6 +243,78 @@ class _MyAISectionState extends State<MyAISection>
     );
   }
 
+  void _showHistoryModal() {
+    final history = HistoryService.getMyAiHistory();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        final c = Theme.of(context).extension<AppColors>()!;
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('🕰️ Search History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: c.textPrimary)),
+                    TextButton(
+                      onPressed: () async {
+                        await HistoryService.clearMyAiHistory();
+                        if (mounted) Navigator.pop(context);
+                      },
+                      child: const Text('Clear All', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: history.isEmpty
+                    ? Center(child: Text('No history available', style: TextStyle(color: c.textSecondary)))
+                    : ListView.builder(
+                        itemCount: history.length,
+                        itemBuilder: (context, index) {
+                          final item = history[index];
+                          return ListTile(
+                            leading: const Icon(Icons.search),
+                            title: Text('"${item['category']}"', style: TextStyle(color: c.textPrimary)),
+                            subtitle: Text('Videos: ${item['videos']?.length ?? 0} | Topics: ${item['topics']?.length ?? 0}', style: TextStyle(color: c.textSecondary)),
+                            trailing: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _categoryController.text = item['category'];
+                                  _videos = item['videos'];
+                                  _topics = item['topics'];
+                                  _error = null;
+                                });
+                                Navigator.pop(context);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: c.primary.withOpacity(0.1),
+                                foregroundColor: c.primary,
+                                elevation: 0,
+                              ),
+                              child: const Text('Restore'),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildSearchBar(AppColors c) {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
@@ -246,14 +325,31 @@ class _MyAISectionState extends State<MyAISection>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Trend Intelligence',
-              style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
-                  color: c.textPrimary)),
-          const SizedBox(height: 4),
-          Text('Real-time trending videos + AI-powered topic ideas',
-              style: TextStyle(fontSize: 13, color: c.textSecondary)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Trend Intelligence',
+                        style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: c.textPrimary)),
+                    const SizedBox(height: 4),
+                    Text('Real-time trending videos + AI-powered topic ideas',
+                        style: TextStyle(fontSize: 13, color: c.textSecondary)),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.history, color: c.textSecondary),
+                onPressed: _showHistoryModal,
+              ),
+            ],
+          ),
           const SizedBox(height: 12),
           Row(
             children: [

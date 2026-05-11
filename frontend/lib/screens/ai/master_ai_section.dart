@@ -6,6 +6,7 @@ import '../../utils/app_colors.dart';
 import '../../widgets/video_card_widget.dart';
 import '../../widgets/transcript_modal.dart';
 import '../../services/api_service.dart';
+import '../../services/history_service.dart';
 
 class MasterAISection extends StatefulWidget {
   const MasterAISection({super.key});
@@ -14,7 +15,7 @@ class MasterAISection extends StatefulWidget {
   State<MasterAISection> createState() => _MasterAISectionState();
 }
 
-class _MasterAISectionState extends State<MasterAISection> {
+class _MasterAISectionState extends State<MasterAISection> with AutomaticKeepAliveClientMixin {
   bool _isYouTubeConnected = false;
   String? _youtubeChannelName;
   bool _isMetaConnected = false;
@@ -69,6 +70,7 @@ class _MasterAISectionState extends State<MasterAISection> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() => _analysisResult = data['analysis']);
+        await HistoryService.saveMasterAiHistory(_selectedPlatform, data['analysis']);
       } else {
         final err = jsonDecode(response.body)['error'] ?? 'Analysis failed';
         _showError(err);
@@ -85,7 +87,11 @@ class _MasterAISectionState extends State<MasterAISection> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final c = Theme.of(context).extension<AppColors>()!;
     if (_isCheckingConnection) return const Center(child: CircularProgressIndicator());
     final isConnected = _selectedPlatform == 'YouTube' ? _isYouTubeConnected : _isMetaConnected;
@@ -265,6 +271,78 @@ class _MasterAISectionState extends State<MasterAISection> {
     );
   }
 
+  void _showHistoryModal() {
+    final history = HistoryService.getMasterAiHistory(_selectedPlatform);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        final c = Theme.of(context).extension<AppColors>()!;
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.7,
+          decoration: BoxDecoration(
+            color: c.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(border: Border(bottom: BorderSide(color: c.border))),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('🕰️ $_selectedPlatform History', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: c.textPrimary)),
+                    TextButton(
+                      onPressed: () async {
+                        await HistoryService.clearMasterAiHistory(_selectedPlatform);
+                        if (mounted) Navigator.pop(context);
+                      },
+                      child: const Text('Clear All', style: TextStyle(color: Colors.red)),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: history.isEmpty
+                    ? Center(child: Text('No history available', style: TextStyle(color: c.textSecondary)))
+                    : ListView.builder(
+                        itemCount: history.length,
+                        itemBuilder: (context, index) {
+                          final item = history[index];
+                          // Format timestamp
+                          final dt = DateTime.parse(item['timestamp']).toLocal();
+                          final ts = '${dt.month}/${dt.day} ${dt.hour}:${dt.minute.toString().padLeft(2, '0')}';
+                          return ListTile(
+                            leading: const Icon(Icons.analytics),
+                            title: Text('Analysis Report', style: TextStyle(color: c.textPrimary)),
+                            subtitle: Text(ts, style: TextStyle(color: c.textSecondary)),
+                            trailing: ElevatedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _analysisResult = item['analysisResult'];
+                                });
+                                Navigator.pop(context);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: c.primary.withOpacity(0.1),
+                                foregroundColor: c.primary,
+                                elevation: 0,
+                              ),
+                              child: const Text('Restore'),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   // ─── DASHBOARD ──────────────────────────────────────────────────────
   Widget _buildDashboard(AppColors c, Map<String, dynamic> data) {
     final niche = data['niche'] ?? {};
@@ -312,6 +390,11 @@ class _MasterAISectionState extends State<MasterAISection> {
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: Icon(Icons.history, color: c.textSecondary),
+                onPressed: _showHistoryModal,
               ),
             ],
           ),

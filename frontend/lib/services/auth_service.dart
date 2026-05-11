@@ -81,7 +81,7 @@ class AuthService {
   }
 
   /// Decode JWT payload locally (no network needed) to get basic user info
-  Map<String, dynamic>? _decodeJwtPayload(String token) {
+  static Map<String, dynamic>? decodeJwtPayload(String token) {
     try {
       final parts = token.split('.');
       if (parts.length != 3) return null;
@@ -106,7 +106,7 @@ class AuthService {
     try {
       await storeToken(token);
       // Decode JWT payload locally — no network call needed
-      final payload = _decodeJwtPayload(token);
+      final payload = decodeJwtPayload(token);
       if (payload != null) {
         return {
           'id': payload['id'] ?? '',
@@ -137,6 +137,42 @@ class AuthService {
       await prefs.remove(_tokenKey);
     } catch (e) {
       debugPrint('Logout Error: $e');
+    }
+  }
+
+  /// Optimistic check of session without network call
+  Future<Map<String, dynamic>?> checkSessionLocally() async {
+    try {
+      final token = await getStoredToken();
+      if (token == null) return null;
+      
+      final payload = decodeJwtPayload(token);
+      if (payload == null) return null;
+
+      // Check expiry
+      if (payload.containsKey('exp')) {
+        final exp = payload['exp'] as int;
+        final currentSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+        if (exp < currentSeconds) {
+          // Token expired, clear session
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove(_tokenKey);
+          return null;
+        }
+      }
+
+      // Return user info from token
+      return {
+        'id': payload['id'] ?? '',
+        'name': payload['name'] ?? '',
+        'email': payload['email'] ?? '',
+        'profilePicture': payload['picture'] ?? payload['profilePicture'] ?? '',
+        'phone': '',
+        'bio': '',
+        'creatorScore': 0,
+      };
+    } catch (e) {
+      return null;
     }
   }
 

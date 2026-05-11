@@ -48,13 +48,26 @@ class AuthProvider extends ChangeNotifier {
         }
       }
 
-      // ── Normal session check (stored JWT) ────────────────────────────────
-      final user = await authService.checkSession();
-      if (user != null) {
+      // ── Normal session check (optimistic) ────────────────────────────────
+      final localUser = await authService.checkSessionLocally();
+      if (localUser != null) {
         _isLoggedIn = true;
-        _currentUser = user;
+        _currentUser = localUser;
         final token = await AuthService.getStoredToken();
         ApiService.setAuthToken(token);
+        
+        // Let UI proceed instantly
+        _isLoading = false;
+        notifyListeners();
+
+        // Silently fetch fresh profile in background
+        authService.checkSession().then((freshUser) {
+          if (freshUser != null) {
+            _currentUser = freshUser;
+            notifyListeners();
+          }
+        });
+        return; // Don't call notifyListeners again
       } else {
         _isLoggedIn = false;
         _currentUser = null;

@@ -11,7 +11,7 @@ class AIScriptLibrary extends StatefulWidget {
   State<AIScriptLibrary> createState() => _AIScriptLibraryState();
 }
 
-class _AIScriptLibraryState extends State<AIScriptLibrary> {
+class _AIScriptLibraryState extends State<AIScriptLibrary> with AutomaticKeepAliveClientMixin {
   bool _isLoading = true;
   List<dynamic> _scripts = [];
   String? _error;
@@ -61,7 +61,11 @@ class _AIScriptLibraryState extends State<AIScriptLibrary> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     final theme = Theme.of(context);
     final c = theme.extension<AppColors>()!;
 

@@ -16,8 +16,13 @@ import 'screens/creator_studio/creator_studio_layout.dart' as creator_studio;
 import 'screens/video_editor_screen.dart';
 import 'screens/login_screen.dart';
 import 'widgets/app_scaffold.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'services/history_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Hive.initFlutter();
+  await HistoryService.init();
   runApp(
     MultiProvider(
       providers: [
@@ -134,15 +139,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     if (!mounted) return;
     final viewState = context.read<ViewStateProvider>();
     if (viewState.selectedTab != _lastTab) {
-      final index = viewState.selectedTab;
-      _lastTab = index;
-      
-      _contentNavKey.currentState?.pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) => _widgetOptions.elementAt(index),
-          transitionDuration: Duration.zero,
-        )
-      );
+      setState(() {
+        _lastTab = viewState.selectedTab;
+      });
     }
   }
 
@@ -189,10 +188,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     if (viewState.selectedTab != index) {
       viewState.setSelectedTab(index);
-      // The listener (_handleProviderTabChange) will trigger the Navigator push
     } else {
       // Pop to first route seamlessly if tapping the same active tab
-      _contentNavKey.currentState?.popUntil((route) => route.isFirst);
+      Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
@@ -203,13 +201,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     return AppScaffold(
       currentIndex: viewState.selectedTab,
       onIndexChanged: _onItemTapped,
-      body: Navigator(
-        key: _contentNavKey,
-        onGenerateRoute: (settings) {
-          return MaterialPageRoute(
-            builder: (context) => _widgetOptions.elementAt(viewState.selectedTab),
-          );
-        },
+      body: IndexedStack(
+        index: viewState.selectedTab,
+        children: _widgetOptions,
       ),
     );
   }
