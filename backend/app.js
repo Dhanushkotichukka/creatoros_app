@@ -19,6 +19,9 @@ process.on('unhandledRejection', (reason, promise) => {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Render's reverse proxy (required for express-rate-limit on Render)
+app.set('trust proxy', 1);
+
 // Initialize session helpers if needed, but globals are removed
 // loadSessions();
 
