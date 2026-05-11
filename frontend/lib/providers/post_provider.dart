@@ -11,7 +11,7 @@ class PostProvider extends ChangeNotifier {
   Set<PlatformType> _connectedPlatforms = {};
   Set<PlatformType> _targetPlatforms = {};
 
-  PostProvider({Set<PlatformType>? initialPlatforms}) : _activePost = PostModel(
+  PostProvider({Set<PlatformType>? initialPlatforms, String? initialMedia}) : _activePost = PostModel(
     id: DateTime.now().millisecondsSinceEpoch.toString(),
     createdAt: DateTime.now(),
   ) {
@@ -22,6 +22,9 @@ class PostProvider extends ChangeNotifier {
         _selectedPlatform = _connectedPlatforms.first;
       }
       _loadTargetPreferences();
+    }
+    if (initialMedia != null) {
+      _activePost = _activePost.copyWith(mediaPaths: [initialMedia]);
     }
   }
 

@@ -14,7 +14,22 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true,
-    sparse: true, // Allows multiple null googleIds
+    sparse: true,
+    lowercase: true,
+    trim: true,
+  },
+  password: {
+    type: String, // bcrypt hashed — null for Google-only users
+    default: null,
+  },
+  authProvider: {
+    type: String,
+    enum: ['google', 'email'],
+    default: 'google',
+  },
+  isVerified: {
+    type: Boolean,
+    default: false, // true immediately for Google users
   },
   googleId: {
     type: String,

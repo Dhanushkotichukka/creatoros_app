@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'multi_post_hub_screen.dart';
 import '../models/multi_post/platform_type.dart';
 import '../utils/app_colors.dart';
@@ -57,6 +58,86 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'linkedin': return Icons.business;
       default: return Icons.public;
     }
+  }
+
+  Future<void> _handleCreateReel(Set<PlatformType> connectedTypes) async {
+    final picker = ImagePicker();
+    final XFile? video = await picker.pickVideo(source: ImageSource.camera);
+    
+    if (video == null) return;
+    if (!mounted) return;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reel Captured!'),
+        content: const Text('Where would you like to save this video?'),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                // Try saving locally. On mobile this works, on web it throws.
+                await video.saveTo('CreatorOS_Reel_${DateTime.now().millisecondsSinceEpoch}.mp4');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Saved locally!')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Saved locally! (Downloaded)')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save Locally'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Uploading to Cloud Storage...')),
+                );
+              }
+              try {
+                final bytes = await video.readAsBytes();
+                await ApiService.uploadFile(bytes, video.name);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Successfully uploaded to Cloud!')),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to upload: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Upload to Cloud'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) =>
+                    MultiPostHubScreen(initialPlatforms: connectedTypes, initialMedia: video.path)),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Direct Post'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -131,7 +212,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 CreatorOverviewCard(
                   data: data,
                   platforms: platforms,
-                  onPostRequested: () => Navigator.push(
+                  onCreateReelRequested: () => _handleCreateReel(connectedTypes),
+                  onUploadVideoRequested: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) =>
                         MultiPostHubScreen(initialPlatforms: connectedTypes)),

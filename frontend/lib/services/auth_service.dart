@@ -7,27 +7,35 @@ import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
 
 class AuthService {
-  static const String _tokenKey = 'jwt_token';
+  static const String _tokenKey = 'creatoros_jwt_token';
 
-  // Mobile-only GoogleSignIn (not used on web)
+  // Mobile-only GoogleSignIn
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
     serverClientId: '376637535192-ira5lufv3fe6se6ga4k2d5jjcl3o564h.apps.googleusercontent.com',
   );
 
-  /// Get stored JWT token
+  // ── Token Storage (SharedPreferences — works on Web + Mobile) ─────────────
+
   static Future<String?> getStoredToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      return prefs.getString(_tokenKey);
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// Store a JWT token (called from web redirect callback handler)
   static Future<void> storeToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
   }
 
-  /// Get headers for protected API calls
+  static Future<void> clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_tokenKey);
+  }
+
   static Future<Map<String, String>> getAuthHeaders() async {
     final token = await getStoredToken();
     return {
@@ -36,61 +44,14 @@ class AuthService {
     };
   }
 
-  /// Trigger Google Sign-In
-  /// - Web:    Opens backend redirect OAuth URL in same browser tab
-  /// - Mobile: Uses google_sign_in popup flow → sends idToken to backend
-  Future<Map<String, dynamic>> signInWithGoogle() async {
-    if (kIsWeb) {
-      // ── WEB: Redirect to backend OAuth flow ─────────────────────────────
-      // The backend will redirect back to this app with ?auth_token=JWT
-      final oauthUrl = Uri.parse('${ApiService.baseUrl}/auth/google-signin/web');
-      await launchUrl(oauthUrl, mode: LaunchMode.platformDefault);
-      // Return empty — AuthProvider will handle token from URL on next load
-      throw Exception('web_redirect_initiated');
-    }
+  // ── JWT Decode ─────────────────────────────────────────────────────────────
 
-    // ── MOBILE: Traditional idToken flow ────────────────────────────────
-    try {
-      final GoogleSignInAccount? account = await _googleSignIn.signIn();
-      if (account == null) throw Exception('Google Sign-In aborted');
-
-      final GoogleSignInAuthentication auth = await account.authentication;
-      final String? idToken = auth.idToken;
-      if (idToken == null) throw Exception('Failed to get ID token from Google');
-
-      final response = await http.post(
-        Uri.parse('${ApiService.baseUrl}/auth/google-signin/google'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'idToken': idToken}),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final token = data['token'];
-        final user = data['user'];
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_tokenKey, token);
-        return user;
-      } else {
-        throw Exception('Backend authentication failed: ${response.body}');
-      }
-    } catch (e) {
-      debugPrint('Auth Error: $e');
-      rethrow;
-    }
-  }
-
-  /// Decode JWT payload locally (no network needed) to get basic user info
   static Map<String, dynamic>? decodeJwtPayload(String token) {
     try {
       final parts = token.split('.');
       if (parts.length != 3) return null;
       String payload = parts[1];
-      // Pad to valid base64 length
-      while (payload.length % 4 != 0) {
-        payload += '=';
-      }
-      // Convert base64url → base64
+      while (payload.length % 4 != 0) payload += '=';
       payload = payload.replaceAll('-', '+').replaceAll('_', '/');
       final decoded = utf8.decode(base64.decode(payload));
       return jsonDecode(decoded) as Map<String, dynamic>;
@@ -100,68 +61,22 @@ class AuthService {
     }
   }
 
-  /// Called after web redirect returns — token is in URL params.
-  /// Decodes the JWT locally and returns basic user info immediately.
-  Future<Map<String, dynamic>?> handleWebRedirectToken(String token) async {
-    try {
-      await storeToken(token);
-      // Decode JWT payload locally — no network call needed
-      final payload = decodeJwtPayload(token);
-      if (payload != null) {
-        return {
-          'id': payload['id'] ?? '',
-          'name': payload['name'] ?? '',
-          'email': payload['email'] ?? '',
-          'profilePicture': payload['profilePicture'] ?? '',
-          'phone': '',
-          'bio': '',
-          'creatorScore': 0,
-        };
-      }
-    } catch (e) {
-      debugPrint('handleWebRedirectToken error: $e');
-    }
-    return null;
-  }
+  // ── Session Management ────────────────────────────────────────────────────
 
-  /// Clear session and logout
-  Future<void> logout() async {
-    try {
-      if (!kIsWeb) await _googleSignIn.signOut();
-      final headers = await getAuthHeaders();
-      await http.post(
-        Uri.parse('${ApiService.baseUrl}/auth/google-signin/logout'),
-        headers: headers,
-      ).catchError((_) => null);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_tokenKey);
-    } catch (e) {
-      debugPrint('Logout Error: $e');
-    }
-  }
-
-  /// Optimistic check of session without network call
   Future<Map<String, dynamic>?> checkSessionLocally() async {
     try {
       final token = await getStoredToken();
       if (token == null) return null;
-      
       final payload = decodeJwtPayload(token);
       if (payload == null) return null;
 
-      // Check expiry
       if (payload.containsKey('exp')) {
         final exp = payload['exp'] as int;
-        final currentSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-        if (exp < currentSeconds) {
-          // Token expired, clear session
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove(_tokenKey);
+        if (exp < DateTime.now().millisecondsSinceEpoch ~/ 1000) {
+          await clearToken();
           return null;
         }
       }
-
-      // Return user info from token
       return {
         'id': payload['id'] ?? '',
         'name': payload['name'] ?? '',
@@ -171,12 +86,11 @@ class AuthService {
         'bio': '',
         'creatorScore': 0,
       };
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
-  /// Fetch user profile from backend using stored token
   Future<Map<String, dynamic>?> checkSession() async {
     try {
       final token = await getStoredToken();
@@ -186,28 +100,179 @@ class AuthService {
         Uri.parse('${ApiService.baseUrl}/auth/google-signin/me'),
         headers: headers,
       );
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body)['user'];
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(_tokenKey);
-        return null;
-      } else {
-        // Server error (500) or not found (404), do NOT delete valid token
+      if (response.statusCode == 200) return jsonDecode(response.body)['user'];
+      if (response.statusCode == 401 || response.statusCode == 403) {
+        await clearToken();
         return null;
       }
-    } catch (e) {
-      debugPrint('Session check error: $e');
+      return null;
+    } catch (_) {
       return null;
     }
   }
 
-  /// Update editable profile fields (name, phone, bio)
-  Future<Map<String, dynamic>> updateProfile({
-    String? name,
-    String? phone,
-    String? bio,
+  // ── Google Sign-In ────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> signInWithGoogle() async {
+    if (kIsWeb) {
+      final oauthUrl = Uri.parse('${ApiService.baseUrl}/auth/google-signin/web');
+      await launchUrl(oauthUrl, mode: LaunchMode.platformDefault);
+      throw Exception('web_redirect_initiated');
+    }
+
+    final GoogleSignInAccount? account = await _googleSignIn.signIn();
+    if (account == null) throw Exception('Google Sign-In aborted');
+
+    final GoogleSignInAuthentication auth = await account.authentication;
+    final String? idToken = auth.idToken;
+    if (idToken == null) throw Exception('Failed to get ID token from Google');
+
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/auth/google-signin/google'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'idToken': idToken}),
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      await storeToken(data['token']);
+      return data['user'];
+    }
+    throw Exception('Backend authentication failed: ${response.body}');
+  }
+
+  Future<Map<String, dynamic>?> handleWebRedirectToken(String token) async {
+    try {
+      await storeToken(token);
+      final payload = decodeJwtPayload(token);
+      if (payload != null) {
+        return {
+          'id': payload['id'] ?? '',
+          'name': payload['name'] ?? '',
+          'email': payload['email'] ?? '',
+          'profilePicture': payload['profilePicture'] ?? '',
+          'phone': '', 'bio': '', 'creatorScore': 0,
+        };
+      }
+    } catch (e) {
+      debugPrint('handleWebRedirectToken error: $e');
+    }
+    return null;
+  }
+
+  // ── Email + Password Auth ─────────────────────────────────────────────────
+
+  /// Returns { userId } on success — user must verify OTP next
+  Future<Map<String, dynamic>> signUp({
+    required String name,
+    required String email,
+    required String password,
   }) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/auth/google-signin/signup'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'name': name, 'email': email, 'password': password}),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 201 || response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Signup failed.');
+  }
+
+  /// Returns { token, user } on success
+  Future<Map<String, dynamic>> signInWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/auth/google-signin/signin'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email, 'password': password}),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      await storeToken(data['token']);
+      return data;
+    }
+    throw Exception(data['error'] ?? 'Sign in failed.');
+  }
+
+  /// Returns { token, user } for verify_email or { resetToken } for reset_password
+  Future<Map<String, dynamic>> verifyOtp({
+    required String userId,
+    required String otp,
+    String type = 'verify_email',
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/auth/google-signin/verify-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'userId': userId, 'otp': otp, 'type': type}),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      if (data['token'] != null) await storeToken(data['token']);
+      return data;
+    }
+    throw Exception(data['error'] ?? 'OTP verification failed.');
+  }
+
+  Future<void> resendOtp({required String userId, String type = 'verify_email'}) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/auth/google-signin/resend-otp'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'userId': userId, 'type': type}),
+    );
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['error'] ?? 'Failed to resend OTP.');
+    }
+  }
+
+  /// Returns { userId } — used to identify which account to reset
+  Future<Map<String, dynamic>> forgotPassword(String email) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/auth/google-signin/forgot-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': email}),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) return data;
+    throw Exception(data['error'] ?? 'Failed to send reset email.');
+  }
+
+  Future<void> resetPassword({
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiService.baseUrl}/auth/google-signin/reset-password'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'resetToken': resetToken, 'newPassword': newPassword}),
+    );
+    if (response.statusCode != 200) {
+      final data = jsonDecode(response.body);
+      throw Exception(data['error'] ?? 'Password reset failed.');
+    }
+  }
+
+  // ── Logout ────────────────────────────────────────────────────────────────
+
+  Future<void> logout() async {
+    try {
+      if (!kIsWeb) await _googleSignIn.signOut();
+      final headers = await getAuthHeaders();
+      await http.post(
+        Uri.parse('${ApiService.baseUrl}/auth/google-signin/logout'),
+        headers: headers,
+      ).catchError((_) => http.Response('{}', 200));
+      await clearToken();
+    } catch (e) {
+      debugPrint('Logout Error: $e');
+    }
+  }
+
+  // ── Profile Update ────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> updateProfile({String? name, String? phone, String? bio}) async {
     final headers = await getAuthHeaders();
     final response = await http.put(
       Uri.parse('${ApiService.baseUrl}/auth/google-signin/profile'),
@@ -218,10 +283,7 @@ class AuthService {
         if (bio != null) 'bio': bio,
       }),
     );
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body)['user'];
-    } else {
-      throw Exception('Failed to update profile: ${response.body}');
-    }
+    if (response.statusCode == 200) return jsonDecode(response.body)['user'];
+    throw Exception('Failed to update profile: ${response.body}');
   }
 }

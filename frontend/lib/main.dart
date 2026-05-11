@@ -15,6 +15,7 @@ import 'screens/multi_post_hub_screen.dart';
 import 'screens/creator_studio/creator_studio_layout.dart' as creator_studio;
 import 'screens/video_editor_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/splash_screen.dart';
 import 'widgets/app_scaffold.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'services/history_service.dart';
@@ -67,7 +68,7 @@ class CreatorOSApp extends StatelessWidget {
       theme: activeTheme,
       darkTheme: activeTheme,
       themeMode: themeMode,
-      home: const AuthGate(),
+      home: const SplashScreen(),
       routes: {
         '/ai/script_workshop': (context) {
            final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>? ?? {};
@@ -145,12 +146,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     }
   }
 
-  static const List<Widget> _widgetOptions = <Widget>[
-    HomeScreen(),
-    AnalyticsScreen(),
+  static final List<Widget> _widgetOptions = <Widget>[
+    const HomeScreen(),
+    const AnalyticsScreen(),
     const SizedBox.shrink(), // Placeholder for Plus button action
-    HubScreen(),
-    AIScreen(),
+    const HubScreen(),
+    const AIScreen(),
   ];
 
   void _onItemTapped(int index) {

@@ -1,22 +1,37 @@
 const express = require('express');
 const router = express.Router();
-const { googleAuth, getMe, updateProfile, logout, webGoogleAuth, webGoogleCallback } = require('../controllers/authController');
+const rateLimit = require('express-rate-limit');
+const {
+    signup, signin, verifyOtp, resendOtp, forgotPassword, resetPassword,
+    googleAuth, getMe, updateProfile, logout, webGoogleAuth, webGoogleCallback
+} = require('../controllers/authController');
 const authenticateToken = require('../middleware/authMiddleware');
 
-// Public — Flutter mobile sends Google idToken here
-router.post('/google', googleAuth);
+// Rate limiter for auth endpoints — max 10 requests per 15 minutes per IP
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { error: 'Too many attempts. Please try again in 15 minutes.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
 
-// Public — Web redirect flow: browser → Google → callback → Flutter web
+// ── Email + Password Auth ────────────────────────────────────────────────────
+router.post('/signup', authLimiter, signup);
+router.post('/signin', authLimiter, signin);
+router.post('/verify-otp', authLimiter, verifyOtp);
+router.post('/resend-otp', authLimiter, resendOtp);
+router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/reset-password', authLimiter, resetPassword);
+
+// ── Google OAuth ─────────────────────────────────────────────────────────────
+router.post('/google', authLimiter, googleAuth);
 router.get('/web', webGoogleAuth);
 router.get('/web/callback', webGoogleCallback);
 
-// Protected — returns current user profile
+// ── Protected ────────────────────────────────────────────────────────────────
 router.get('/me', authenticateToken, getMe);
-
-// Protected — update editable profile fields (name, phone, bio)
 router.put('/profile', authenticateToken, updateProfile);
-
-// Public — client clears its own JWT
 router.post('/logout', logout);
 
 module.exports = router;

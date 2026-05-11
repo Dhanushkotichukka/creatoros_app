@@ -4,9 +4,16 @@ import '../utils/responsive.dart';
 class CreatorOverviewCard extends StatelessWidget {
   final Map<String, dynamic> data;
   final List<dynamic>? platforms;
-  final VoidCallback? onPostRequested;
+  final VoidCallback? onCreateReelRequested;
+  final VoidCallback? onUploadVideoRequested;
 
-  const CreatorOverviewCard({super.key, required this.data, this.platforms, this.onPostRequested});
+  const CreatorOverviewCard({
+    super.key, 
+    required this.data, 
+    this.platforms, 
+    this.onCreateReelRequested,
+    this.onUploadVideoRequested,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +128,7 @@ class CreatorOverviewCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: onPostRequested,
+                    onPressed: onCreateReelRequested,
                     icon: const Icon(Icons.video_call, size: 18),
                     label: const Text('Create Reel'),
                     style: ElevatedButton.styleFrom(
@@ -149,7 +156,7 @@ class CreatorOverviewCard extends StatelessWidget {
                       ],
                     ),
                     child: ElevatedButton.icon(
-                      onPressed: onPostRequested,
+                      onPressed: onUploadVideoRequested,
                       icon: Icon(Icons.upload, size: 18, color: theme.colorScheme.primary),
                       label: Text('Upload Video', style: TextStyle(fontWeight: FontWeight.w700, color: theme.colorScheme.primary)),
                       style: ElevatedButton.styleFrom(

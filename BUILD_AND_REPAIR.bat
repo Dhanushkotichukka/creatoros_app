@@ -7,6 +7,7 @@ echo Phase 1: Cleaning and fetching dependencies...
 cd frontend
 call flutter clean
 call flutter pub get
+call flutter pub run flutter_launcher_icons:main
 
 echo.
 echo Phase 2: Building your Web Dashboard...

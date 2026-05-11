@@ -4,9 +4,9 @@ const Token = require('./Token');
 const Content = require('./Content');
 const Analytics = require('./Analytics');
 const Script = require('./Script');
+const OTP = require('./OTP');
 
 const syncDatabase = async () => {
-    // Connect to MongoDB
     await connectDB();
 };
 
@@ -16,5 +16,7 @@ module.exports = {
     Token,
     Content,
     Analytics,
-    Script
+    Script,
+    OTP,
 };
+

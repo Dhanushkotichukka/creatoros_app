@@ -11,12 +11,13 @@ import '../widgets/upload_components/bottom_sections.dart';
 
 class MultiPostHubScreen extends StatelessWidget {
   final Set<PlatformType> initialPlatforms;
-  const MultiPostHubScreen({Key? key, this.initialPlatforms = const {}}) : super(key: key);
+  final String? initialMedia;
+  const MultiPostHubScreen({Key? key, this.initialPlatforms = const {}, this.initialMedia}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => PostProvider(initialPlatforms: initialPlatforms),
+      create: (_) => PostProvider(initialPlatforms: initialPlatforms, initialMedia: initialMedia),
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Post to Everywhere', style: TextStyle(fontWeight: FontWeight.bold)),
