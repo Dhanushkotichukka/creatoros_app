@@ -116,7 +116,7 @@ exports.handleCallback = async (req, res) => {
                     platformAccountName: linkedinName,
                     profileAvatar: linkedinAvatar,
                 },
-                { upsert: true, new: true }
+                { upsert: true, returnDocument: 'after' }
             );
             console.log(`[LINKEDIN] Token saved for userId=${userId}, name=${linkedinName}`);
         } else {
@@ -460,7 +460,8 @@ async function pollLinkedInStatus(assetUrn, token, isVid) {
         : `https://api.linkedin.com/rest/images/${cleanUrn}`;
 
     for (let i = 0; i < maxTries; i++) {
-        await new Promise(r => setTimeout(r, 4000));
+        const delay = Math.min(4000 * Math.pow(1.5, i), 60000); // Exponential backoff capped at 60s
+        await new Promise(r => setTimeout(r, delay));
         try {
             const res = await axios.get(endpoint, {
                 headers: {
@@ -486,7 +487,7 @@ exports.getLinkedInAnalytics = async (req, res) => {
     const userId = req.user?.id || 'default-user-id';
     const tokenDoc = await Token.findOne({ userId: userId, platform: 'linkedin' });
     const authorUrn = req.query.organizationUrn || tokenDoc?.platformAccountId;
-    const accessToken = req.headers.authorization?.split(' ')[1] || tokenDoc?.accessToken;
+    const accessToken = tokenDoc?.accessToken; // SECURITY FIX: strictly use DB token, not raw headers
 
     if (!authorUrn || !accessToken) return res.status(400).json({ error: 'No credentials' });
 

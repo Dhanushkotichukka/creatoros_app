@@ -131,7 +131,7 @@ async function resolveIGAccount(accessToken, userId) {
                     profileAvatar: igInfo.data.profile_picture_url,
                     extraData: { igUsername: igInfo.data.username },
                 },
-                { upsert: true, new: true }
+                { upsert: true, returnDocument: 'after' }
             );
 
             console.log(`[DIAGNOSTIC] RESOLVED: @${igInfo.data.username} for userId=${targetUserId}`);
@@ -209,7 +209,7 @@ exports.handleCallback = async (req, res) => {
             await Token.findOneAndUpdate(
                 { userId, platform: 'meta' },
                 { userId, platform: 'meta', accessToken },
-                { upsert: true, new: true }
+                { upsert: true, returnDocument: 'after' }
             );
             console.warn('[META] IG account could not be resolved. Raw token saved.');
         }

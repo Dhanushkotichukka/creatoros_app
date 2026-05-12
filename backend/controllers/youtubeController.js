@@ -122,7 +122,7 @@ exports.handleCallback = async (req, res) => {
                 ...(avatar && { avatar }),
                 ...(uploadsPlaylistId && { uploadsPlaylistId }),
             },
-            { upsert: true, new: true }
+            { upsert: true, returnDocument: 'after' }
         );
 
         console.log(`[YT] Token saved for userId=${userId}, channel=${channelName}`);

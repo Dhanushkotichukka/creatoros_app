@@ -416,11 +416,8 @@ router.get('/overview', async (req, res) => {
             realtimeHours = [...Array(48 - realtimeHours.length).fill(0), ...realtimeHours];
         }
     } else {
-        // Fallback realistic 48h curve
-        realtimeHours = Array.from({ length: 48 }, (_, i) => {
-            const peak = Math.sin((i - 12) * Math.PI / 24) * 50;
-            return Math.max(0, Math.floor(100 + peak + Math.random() * 20));
-        });
+        // No live data available
+        realtimeHours = Array(48).fill(0);
     }
 
     // Assign perVideo based on topContent view distribution
@@ -796,10 +793,8 @@ router.get('/:platform', async (req, res) => {
             realtimeHours = [...Array(48 - realtimeHours.length).fill(0), ...realtimeHours];
         }
     } else {
-        realtimeHours = Array.from({ length: 48 }, (_, i) => {
-            const peak = Math.sin((i - 12) * Math.PI / 24) * 30;
-            return Math.max(0, Math.floor(50 + peak + Math.random() * 10));
-        });
+        // No live data available
+        realtimeHours = Array(48).fill(0);
     }
 
     realtimePerVideo = videos.slice(0, 5).map(v => ({
