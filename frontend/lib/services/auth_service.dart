@@ -12,7 +12,7 @@ class AuthService {
   // Mobile-only GoogleSignIn
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    serverClientId: const String.fromEnvironment('GOOGLE_CLIENT_ID', defaultValue: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com'),
+    serverClientId: const String.fromEnvironment('GOOGLE_CLIENT_ID', defaultValue: '376637535192-ira5lufv3fe6se6ga4k2d5jjcl3o564h.apps.googleusercontent.com'),
   );
 
   // ── Token Storage (SharedPreferences — works on Web + Mobile) ─────────────
