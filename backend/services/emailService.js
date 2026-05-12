@@ -1,4 +1,8 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// Force IPv4 to prevent IPv6 routing timeouts on Render with Node 18+
+dns.setDefaultResultOrder('ipv4first');
 
 // Create reusable transporter
 const createTransporter = () => {
@@ -7,8 +11,8 @@ const createTransporter = () => {
   }
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // true for 465, false for other ports
+    port: 465,
+    secure: true, // true for 465
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,

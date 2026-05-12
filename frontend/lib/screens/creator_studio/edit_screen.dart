@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:image_picker/image_picker.dart';
 import '../video_editor_screen.dart';
+import 'image_editor_screen.dart';
+import 's3_image_picker_screen.dart';
 
 class EditScreen extends StatelessWidget {
   const EditScreen({super.key});
@@ -75,7 +79,12 @@ class EditScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              _QuickAction(icon: Icons.image, label: 'Image', color: Colors.green),
+              _QuickAction(
+                icon: Icons.image,
+                label: 'Image',
+                color: Colors.green,
+                onTap: () => _showImageSourcePicker(context),
+              ),
               _QuickAction(icon: Icons.auto_awesome_mosaic, label: 'Template', color: Colors.orange),
               _QuickAction(icon: Icons.camera_alt, label: 'Camera', color: Colors.purple),
                 ],
@@ -153,6 +162,65 @@ class EditScreen extends StatelessWidget {
       SnackBar(content: Text('$feature coming soon!'), duration: const Duration(seconds: 2)),
     );
   }
+
+  void _showImageSourcePicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.cloud_outlined),
+                title: const Text('Cloud Data (S3)'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final bytes = await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const S3ImagePickerScreen()),
+                  );
+                  if (bytes != null && context.mounted) {
+                    final editedBytes = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ImageEditorScreen(memoryImage: bytes)),
+                    );
+                    if (editedBytes != null && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Image saved successfully!')),
+                      );
+                    }
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Local Gallery'),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final picker = ImagePicker();
+                  final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                  if (pickedFile != null && context.mounted) {
+                    final bytes = await Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ImageEditorScreen(file: File(pickedFile.path))),
+                    );
+                    if (bytes != null && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Image saved successfully!')),
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
 }
 
 class _QuickAction extends StatelessWidget {

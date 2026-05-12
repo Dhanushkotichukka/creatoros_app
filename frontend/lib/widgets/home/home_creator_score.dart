@@ -80,10 +80,12 @@ class _HomeCreatorScoreState extends State<HomeCreatorScore>
       );
     }
 
-    final score = _scoreData!['score'] as int;
-    final metricsRaw = _scoreData!['metrics'] as List;
+    final int score = (_scoreData!['score'] as num?)?.toInt() ?? 82;
+    final List metricsRaw = (_scoreData!['metrics'] as List?) ?? [];
     final metrics = metricsRaw.map((m) => _ScoreMetric(
-      m['label'], m['value'], _parseColor(m['color'])
+      m['label']?.toString() ?? 'Metric',
+      (m['value'] as num?)?.toInt() ?? 0,
+      _parseColor(m['color']?.toString() ?? '0xFF448AFF')
     )).toList();
 
     return Container(

@@ -334,12 +334,12 @@ router.get('/overview', async (req, res) => {
         let liPlatform = {
             name: 'LinkedIn', isConnected: true,
             views: 'Synced', subscribers: 'Synced', videos: 'Synced',
-            channelName: req.platformContext.linkedinName || 'Connected LinkedIn',
+            channelName: req.platformContext.linkedinName ? req.platformContext.linkedinName + ' (Demo)' : 'Connected LinkedIn (Demo)',
             channelAvatar: req.platformContext.linkedinAvatar
         };
 
-        const liConnections = 1450; // demoAnalyticsData
-        const liReach = 12500; // demoAnalyticsData
+        const liConnections = 0; // Placeholder until LinkedIn API is supported
+        const liReach = 0; // Placeholder until LinkedIn API is supported
         totalViewsNum += liReach;
         totalSubsNum += liConnections;
 
@@ -500,6 +500,77 @@ router.get('/overview', async (req, res) => {
 
     setCache(cacheKey, result, 15 * 60 * 1000); // 15 mins TTL
     res.json(result);
+});
+
+// ─── CREATOR SCORE ──────────────────────────────────────────────────────────
+router.get('/creator-score', async (req, res) => {
+    try {
+        const Content = require('../models/Content');
+        const Analytics = require('../models/Analytics');
+        const userId = req.user.id;
+
+        const now = new Date();
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+        // Frequency
+        const recentContent = await Content.find({
+            userId,
+            status: 'published',
+            publishedAt: { $gte: thirtyDaysAgo }
+        });
+        const frequencyScore = Math.min(recentContent.length * 10, 100);
+
+        // Consistency
+        let weeksWithPosts = 0;
+        for (let i = 0; i < 4; i++) {
+            const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+            const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+            const hasPost = recentContent.some(c => new Date(c.publishedAt) >= weekStart && new Date(c.publishedAt) < weekEnd);
+            if (hasPost) weeksWithPosts++;
+        }
+        const consistencyScore = (weeksWithPosts / 4) * 100;
+
+        // Engagement
+        const recentAnalytics = await Analytics.find({
+            userId,
+            date: { $gte: thirtyDaysAgo }
+        });
+        
+        let totalAvgViewPct = 0;
+        let countWithPct = 0;
+        for (const doc of recentAnalytics) {
+            if (doc.metrics && doc.metrics.avgViewPercentage) {
+                totalAvgViewPct += parseFloat(doc.metrics.avgViewPercentage);
+                countWithPct++;
+            }
+        }
+        const engagementScore = countWithPct > 0 ? Math.min(Math.round(totalAvgViewPct / countWithPct), 100) : 75; // Default 75 if no exact analytics
+
+        // Overall Score (Weighted mean: 40% Consistency, 40% Engagement, 20% Frequency)
+        const overallScore = Math.round((consistencyScore * 0.4) + (engagementScore * 0.4) + (frequencyScore * 0.2));
+
+        // Fallback for new accounts
+        const finalScore = recentContent.length === 0 && recentAnalytics.length === 0 ? 82 : overallScore;
+
+        res.json({
+            score: finalScore || 82,
+            metrics: [
+                { label: 'Consistency', value: Math.round(consistencyScore) || 90 },
+                { label: 'Engagement', value: Math.round(engagementScore) || 75 },
+                { label: 'Frequency', value: Math.round(frequencyScore) || 85 }
+            ]
+        });
+    } catch (err) {
+        console.error('[CreatorScore Error]', err);
+        res.json({
+            score: 82,
+            metrics: [
+                { label: 'Consistency', value: 90 },
+                { label: 'Engagement', value: 75 },
+                { label: 'Frequency', value: 85 }
+            ]
+        });
+    }
 });
 
 // ─── PLATFORM DEEP ANALYTICS ─────────────────────────────────────────
@@ -694,12 +765,12 @@ router.get('/:platform', async (req, res) => {
         }
     } else if (platform.toLowerCase() === 'linkedin' && req.platformContext.linkedinToken) {
         try {
-            const connections = 1450; // demoAnalyticsData
-            const impressions = 12500; // demoAnalyticsData
+            const connections = 0; // Placeholder
+            const impressions = 0; // Placeholder
             const engRate = '4.2';
 
             platformData = {
-                name: req.platformContext.linkedinName || 'LinkedIn Profile',
+                name: req.platformContext.linkedinName ? req.platformContext.linkedinName + ' (Demo)' : 'LinkedIn Profile (Demo)',
                 avatar: req.platformContext.linkedinAvatar,
                 subscribers: formatViews(connections),
                 subscribersNum: connections,
@@ -1459,75 +1530,7 @@ router.post('/insights', async (req, res) => {
     }
 });
 
-// ─── CREATOR SCORE ──────────────────────────────────────────────────────────
-router.get('/creator-score', async (req, res) => {
-    try {
-        const Content = require('../models/Content');
-        const Analytics = require('../models/Analytics');
-        const userId = req.user.id;
 
-        const now = new Date();
-        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        // Frequency
-        const recentContent = await Content.find({
-            userId,
-            status: 'published',
-            publishedAt: { $gte: thirtyDaysAgo }
-        });
-        const frequencyScore = Math.min(recentContent.length * 10, 100);
-
-        // Consistency
-        let weeksWithPosts = 0;
-        for (let i = 0; i < 4; i++) {
-            const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
-            const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
-            const hasPost = recentContent.some(c => new Date(c.publishedAt) >= weekStart && new Date(c.publishedAt) < weekEnd);
-            if (hasPost) weeksWithPosts++;
-        }
-        const consistencyScore = (weeksWithPosts / 4) * 100;
-
-        // Engagement
-        const recentAnalytics = await Analytics.find({
-            userId,
-            date: { $gte: thirtyDaysAgo }
-        });
-        
-        let totalAvgViewPct = 0;
-        let countWithPct = 0;
-        for (const doc of recentAnalytics) {
-            if (doc.metrics && doc.metrics.avgViewPercentage) {
-                totalAvgViewPct += parseFloat(doc.metrics.avgViewPercentage);
-                countWithPct++;
-            }
-        }
-        const engagementScore = countWithPct > 0 ? Math.min(Math.round(totalAvgViewPct / countWithPct), 100) : 75; // Default 75 if no exact analytics
-
-        // Overall Score (Weighted mean: 40% Consistency, 40% Engagement, 20% Frequency)
-        const overallScore = Math.round((consistencyScore * 0.4) + (engagementScore * 0.4) + (frequencyScore * 0.2));
-
-        // Fallback for new accounts
-        const finalScore = recentContent.length === 0 && recentAnalytics.length === 0 ? 82 : overallScore;
-
-        res.json({
-            score: finalScore || 82,
-            metrics: [
-                { label: 'Consistency', value: Math.round(consistencyScore) || 90 },
-                { label: 'Engagement', value: Math.round(engagementScore) || 75 },
-                { label: 'Frequency', value: Math.round(frequencyScore) || 85 }
-            ]
-        });
-    } catch (err) {
-        console.error('[CreatorScore Error]', err);
-        res.json({
-            score: 82,
-            metrics: [
-                { label: 'Consistency', value: 90 },
-                { label: 'Engagement', value: 75 },
-                { label: 'Frequency', value: 85 }
-            ]
-        });
-    }
-});
 
 module.exports = router;
