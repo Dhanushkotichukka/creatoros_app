@@ -40,11 +40,11 @@ class _HomeCreatorScoreState extends State<HomeCreatorScore>
       if (mounted) {
         setState(() {
           _scoreData = {
-            'score': 82,
+            'score': 0,
             'metrics': [
-              {'label': 'Consistency', 'value': 90, 'color': '0xFF69F0AE'},
-              {'label': 'Engagement', 'value': 75, 'color': '0xFFFFAB40'},
-              {'label': 'Frequency', 'value': 85, 'color': '0xFF448AFF'},
+              {'label': 'Consistency', 'value': 0, 'color': '0xFF69F0AE'},
+              {'label': 'Engagement', 'value': 0, 'color': '0xFFFFAB40'},
+              {'label': 'Frequency', 'value': 0, 'color': '0xFF448AFF'},
             ]
           };
           _isLoading = false;
@@ -80,7 +80,7 @@ class _HomeCreatorScoreState extends State<HomeCreatorScore>
       );
     }
 
-    final int score = (_scoreData!['score'] as num?)?.toInt() ?? 82;
+    final int score = (_scoreData!['score'] as num?)?.toInt() ?? 0;
     final List metricsRaw = (_scoreData!['metrics'] as List?) ?? [];
     final metrics = metricsRaw.map((m) => _ScoreMetric(
       m['label']?.toString() ?? 'Metric',

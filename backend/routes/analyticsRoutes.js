@@ -345,30 +345,11 @@ router.get('/overview', async (req, res) => {
 
         liPlatform.views = formatViews(liReach);
         liPlatform.subscribers = formatViews(liConnections);
-        liPlatform.videos = formatViews(15);
+        liPlatform.videos = formatViews(0);
 
-        const liPosts = [
-            {
-                id: 'li_1', title: 'Excited to announce my new project! 🚀 #development',
-                thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&q=80',
-                publishedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-                views: formatViews(3200),
-                viewsNum: 3200,
-                platform: 'LinkedIn', type: 'post',
-                likes: '120'
-            },
-            {
-                id: 'li_2', title: 'Here are 5 tips for better productivity at work...',
-                thumbnail: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=500&q=80',
-                publishedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-                views: formatViews(5100),
-                viewsNum: 5100,
-                platform: 'LinkedIn', type: 'post',
-                likes: '245'
-            }
-        ];
+        const liPosts = [];
         topContent = [...topContent, ...liPosts];
-        totalLikesNum += 365;
+        totalLikesNum += 0;
 
         platforms.push(liPlatform);
     }
@@ -550,24 +531,24 @@ router.get('/creator-score', async (req, res) => {
         const overallScore = Math.round((consistencyScore * 0.4) + (engagementScore * 0.4) + (frequencyScore * 0.2));
 
         // Fallback for new accounts
-        const finalScore = recentContent.length === 0 && recentAnalytics.length === 0 ? 82 : overallScore;
+        const finalScore = overallScore;
 
         res.json({
-            score: finalScore || 82,
+            score: finalScore || 0,
             metrics: [
-                { label: 'Consistency', value: Math.round(consistencyScore) || 90 },
-                { label: 'Engagement', value: Math.round(engagementScore) || 75 },
-                { label: 'Frequency', value: Math.round(frequencyScore) || 85 }
+                { label: 'Consistency', value: Math.round(consistencyScore) || 0 },
+                { label: 'Engagement', value: Math.round(engagementScore) || 0 },
+                { label: 'Frequency', value: Math.round(frequencyScore) || 0 }
             ]
         });
     } catch (err) {
         console.error('[CreatorScore Error]', err);
         res.json({
-            score: 82,
+            score: 0,
             metrics: [
-                { label: 'Consistency', value: 90 },
-                { label: 'Engagement', value: 75 },
-                { label: 'Frequency', value: 85 }
+                { label: 'Consistency', value: 0 },
+                { label: 'Engagement', value: 0 },
+                { label: 'Frequency', value: 0 }
             ]
         });
     }
@@ -784,46 +765,12 @@ router.get('/:platform', async (req, res) => {
             };
 
             const now = Date.now();
-            videos = [
-                {
-                    id: 'li_1', title: 'Excited to announce my new project! 🚀 #development',
-                    thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&q=80',
-                    publishedAt: new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString(),
-                    views: formatViews(3200),
-                    viewsNum: 3200,
-                    likes: '120',
-                    comments: '15',
-                    platform: 'LinkedIn',
-                    type: 'post'
-                },
-                {
-                    id: 'li_2', title: 'Here are 5 tips for better productivity at work...',
-                    thumbnail: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=500&q=80',
-                    publishedAt: new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString(),
-                    views: formatViews(5100),
-                    viewsNum: 5100,
-                    likes: '245',
-                    comments: '32',
-                    platform: 'LinkedIn',
-                    type: 'post'
-                },
-                {
-                    id: 'li_3', title: 'The future of AI is moving faster than we think.',
-                    thumbnail: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=500&q=80',
-                    publishedAt: new Date(now - 12 * 24 * 60 * 60 * 1000).toISOString(),
-                    views: formatViews(4200),
-                    viewsNum: 4200,
-                    likes: '180',
-                    comments: '24',
-                    platform: 'LinkedIn',
-                    type: 'post'
-                }
-            ];
+            videos = [];
 
-            historical.labels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
-            historical.views = [2000, 3500, 2800, 4200];
-            historical.subs = [0, 0, 0, 0];
-            historical.watchTime = [100, 150, 120, 180];
+            historical.labels = [];
+            historical.views = [];
+            historical.subs = [];
+            historical.watchTime = [];
 
             audience.demographics = [
                 { label: 'Top Industry', value: 'Technology' },

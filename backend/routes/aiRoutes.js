@@ -2,15 +2,27 @@ const express = require('express');
 const router = express.Router();
 const aiService = require('../services/aiService');
 const multer = require('multer');
+const { body, validationResult } = require('express-validator');
 const upload = multer({ dest: 'uploads/' }); // Temporary storage for transcription
+
+// Middleware to check validation results
+const validate = (req, res, next) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({ error: errors.array()[0].msg });
+    }
+    next();
+};
 
 // ─── AI LAB CORE ENDPOINTS (Multi-Brain Router) ──────────────────────────
 
 // 1. Script Writer
-router.post('/script', async (req, res) => {
+router.post('/script', 
+    body('topic').trim().notEmpty().withMessage('Topic is required'),
+    validate,
+    async (req, res) => {
     try {
         const { topic } = req.body;
-        if (!topic) return res.status(400).json({ error: 'Topic is required' });
         const result = await aiService.generateScript(topic);
         res.json({ data: result });
     } catch (e) {
@@ -20,10 +32,12 @@ router.post('/script', async (req, res) => {
 });
 
 // 2. AI Chat Assistant
-router.post('/chat', async (req, res) => {
+router.post('/chat', 
+    body('message').trim().notEmpty().withMessage('Message is required'),
+    validate,
+    async (req, res) => {
     try {
         const { message, context } = req.body;
-        if (!message) return res.status(400).json({ error: 'Message is required' });
         const result = await aiService.generateAIChat(message, context);
         res.json({ data: result });
     } catch (e) {
@@ -33,10 +47,12 @@ router.post('/chat', async (req, res) => {
 });
 
 // 3. Hashtags & Metadata
-router.post('/metadata', async (req, res) => {
+router.post('/metadata', 
+    body('topic').trim().notEmpty().withMessage('Topic is required'),
+    validate,
+    async (req, res) => {
     try {
         const { topic } = req.body;
-        if (!topic) return res.status(400).json({ error: 'Topic is required' });
         const result = await aiService.generateMetadata(topic);
         // Return hashtags at top-level so Flutter client can read json['hashtags']
         const parsed = typeof result === 'string' ? JSON.parse(result) : result;
@@ -48,10 +64,12 @@ router.post('/metadata', async (req, res) => {
 });
 
 // 4. Analytics AI (Master AI)
-router.post('/analyze', async (req, res) => {
+router.post('/analyze', 
+    body('analyticsData').notEmpty().withMessage('Analytics data is required'),
+    validate,
+    async (req, res) => {
     try {
         const { analyticsData } = req.body;
-        if (!analyticsData) return res.status(400).json({ error: 'Analytics data is required' });
         const result = await aiService.analyzeChannelData(analyticsData);
         res.json({ data: result });
     } catch (e) {
@@ -78,10 +96,12 @@ router.post('/transcribe', upload.single('audioFile'), async (req, res) => {
 });
 
 // 6. Voice AI (TTS)
-router.post('/voiceover', async (req, res) => {
+router.post('/voiceover', 
+    body('text').trim().notEmpty().withMessage('Text is required'),
+    validate,
+    async (req, res) => {
     try {
         const { text } = req.body;
-        if (!text) return res.status(400).json({ error: 'Text is required' });
         const result = await aiService.generateVoiceover(text);
         res.json({ data: result });
     } catch (e) {

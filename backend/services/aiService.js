@@ -13,10 +13,12 @@
 const Groq = require('groq-sdk');
 const axios = require('axios');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const { OpenAI } = require('openai');
 const CreatorMemory = require('../models/CreatorMemory');
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
 // ─── MODEL ROUTING (FIX 3) ───────────────────────────────────────────────────
 // Route tasks to the right model by cost vs quality tradeoff.
@@ -987,11 +989,27 @@ exports.transcribeAudio = async (filePath) => {
 };
 
 exports.generateVoiceover = async (text, reqIp = 'default') => {
+    if (!openai) {
+        throw new Error('OpenAI API key is missing. Voiceover is unavailable.');
+    }
+
     // Basic rate limit
     const usage = usageLimits.tts.get(reqIp) || 0;
-    if (usage >= 2) throw new Error('Daily TTS limit reached (2/day) to prevent quota exhaustion.');
+    if (usage >= 10) throw new Error('Daily TTS limit reached (10/day) to prevent quota exhaustion.');
     
-    // Fake TTS generation for now as requested earlier
     usageLimits.tts.set(reqIp, usage + 1);
-    return { audioBase64: 'UklGRiQAAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YQAAAAA=', duration: 1 };
+
+    try {
+        const mp3 = await openai.audio.speech.create({
+            model: "tts-1",
+            voice: "alloy",
+            input: text,
+        });
+        const buffer = Buffer.from(await mp3.arrayBuffer());
+        const audioBase64 = buffer.toString('base64');
+        return { audioBase64, duration: 0 };
+    } catch (e) {
+        console.error('OpenAI TTS failed:', e.message);
+        throw new Error('Failed to generate real voiceover');
+    }
 };
