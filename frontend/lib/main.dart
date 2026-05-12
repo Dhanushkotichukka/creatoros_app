@@ -20,8 +20,11 @@ import 'widgets/app_scaffold.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'services/history_service.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   await Hive.initFlutter();
   await HistoryService.init();
   runApp(

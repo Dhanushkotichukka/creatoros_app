@@ -4,10 +4,12 @@ import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 import '../models/multi_post/post_model.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class ApiService {
-  // Use deployed Render URL for all platforms
+  // Use deployed Render URL for all platforms or fallback
   static String get baseUrl {
-    return 'https://creatoros-backend-rb5b.onrender.com';
+    return dotenv.env['API_BASE_URL'] ?? 'https://creatoros-backend-rb5b.onrender.com';
   }
   static bool hasConnected = false;
 

@@ -6,13 +6,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'api_service.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class AuthService {
   static const String _tokenKey = 'creatoros_jwt_token';
 
   // Mobile-only GoogleSignIn
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
-    serverClientId: const String.fromEnvironment('GOOGLE_CLIENT_ID', defaultValue: '376637535192-ira5lufv3fe6se6ga4k2d5jjcl3o564h.apps.googleusercontent.com'),
+    serverClientId: dotenv.env['GOOGLE_CLIENT_ID'],
   );
 
   // ── Token Storage (SharedPreferences — works on Web + Mobile) ─────────────
